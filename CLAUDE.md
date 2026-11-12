@@ -38,4 +38,5 @@ You are helping a 4-person team build **AuditLoop** for MineArena PS-01 in 24 ho
 - Archives URLs use `int(cik)` (no leading zeros); data.sec.gov URLs use the 10-digit zero-padded CIK.
 - Company Facts contains restated values from later filings. Match on `accn` **and** `end`.
 - Streamlit reruns the whole script on every interaction. The API derives `decision_id`; the UI must still disable buttons after submit.
-- Node order is fetch → locate → extract → **validate → score** → route: the confidence score includes a validation term.
+- Node order matches the PS workflow: fetch → locate → extract → **score_confidence → validate** → route. Confidence has 3 parts (agreement, label, period_unit); any failed validation check escalates on its own.
+- Label matching uses `rapidfuzz.fuzz.ratio` on lowercased text, **not** `token_set_ratio` (that one scores long, wrong labels as 100).

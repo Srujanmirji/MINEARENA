@@ -46,9 +46,9 @@ flowchart TB
 flowchart TD
     A[fetch_filing] --> B[locate_statements]
     B --> C["extract<br/>parser A + LLM B"]
-    C --> D[validate]
-    D --> E[score_confidence]
-    E --> F[route]
+    C --> E[score_confidence]
+    E --> D[validate]
+    D --> F[route]
     F --> G[auto_approve]
     G -->|pending empty| J[verify_vs_xbrl]
     G -->|pending not empty| H["human_review<br/>interrupt() — NO writes"]
@@ -60,7 +60,8 @@ flowchart TD
 ```
 
 - One graph run = one filing. `thread_id = f"{ticker}-{fiscal_year}"`.
-- **`validate` runs before `score_confidence`**, because the score includes a validation term.
+- Order matches the PS workflow exactly: **Step 3 confidence (`score_confidence`) → Step 4 validation (`validate`) → Step 5 automated decision (`route` + `auto_approve`)**.
+- Confidence = *did we read it right?* Validation = *does it make sense?* Either one failing sends the value to a human.
 - `route` splits values into "clean" and an ordered `pending` list (with reasons).
 - `auto_approve` always runs: it approves the clean values, then a conditional edge checks `pending`.
 - Each pause holds **one** value. The `human_review ↔ apply_decision` loop runs until `pending` is empty.
@@ -72,8 +73,8 @@ flowchart TD
 | `fetch_filing` | `edgar.client` (Mayur) | ticker | cik, accession, fiscal_year, period_end, primary_document | cache files (skipped if cached) |
 | `locate_statements` | `extract.locate` (Mayur) | cleaned document | tables (statement → table index, heading, scale) | none |
 | `extract` | `extract.extractor` (Mayur) | tables | values, segments | `INSERT OR IGNORE` values |
-| `validate` | `scoring.validation` (Srujan) | values, segments | values (validation) | none |
 | `score_confidence` | `scoring.confidence` (Srujan) | values | values (signals, confidence) | none |
+| `validate` | `scoring.validation` (Srujan) | values, segments | values (validation) | none |
 | `route` | `scoring.router` (Srujan) | values, threshold | values (status, reason), pending | none |
 | `auto_approve` | `agent.nodes` (Zeeshan) | values | — | idempotent status update + audit rows (`system`) |
 | `human_review` | `agent.nodes` (Zeeshan) | pending[0] | decision | **none** |
@@ -179,7 +180,25 @@ sequenceDiagram
 
 **Parser-only mode:** if the LLM is down or rate-limited, run A alone. The agreement signal becomes 0.5, so more values escalate, but the flow still works.
 
-## 6. Validation (runs first)
+## 6. Confidence (PS Step 3)
+
+Confidence answers one question: **did we read this number correctly?**
+
+**C = 0.45·A + 0.30·L + 0.25·P**
+
+| Part | 1.0 | 0.5 | 0 |
+|---|---|---|---|
+| **A** agreement | parser and LLM match within 1 unit of scale | only one extractor found a value | they disagree |
+| **L** label | best `rapidfuzz.fuzz.ratio` of the lowercased row label vs the metric's synonyms ÷ 100 (continuous) | | |
+| **P** period + unit | column date = fiscal year end **and** scale detected | one of the two | neither |
+
+- Derived values (e.g. liabilities = L&E − equity) are **capped at 0.75**, so they always reach a human.
+- Missing value → C = 0.
+- Use `fuzz.ratio`, **not** `token_set_ratio`: token-set scores "Net income attributable to common stockholders after preferred dividends" as a perfect 100 match for "net income" (tested), so the label signal would never drop.
+
+## 7. Validation (PS Step 4)
+
+Validation answers a different question: **does this number make sense?**
 
 | Rule | Check | Severity |
 |---|---|---|
@@ -189,20 +208,7 @@ sequenceDiagram
 | Scale sanity | value ≈ 1,000× (or ÷1,000) the prior year → "possible scale error" | Hard |
 | Sign | revenue, total assets, total liabilities > 0; brackets read as negatives | Hard |
 
-## 7. Confidence (runs after validation)
-
-**C = 0.35·A + 0.25·L + 0.20·P + 0.20·V**
-
-| Part | 1.0 | 0.5 | 0 |
-|---|---|---|---|
-| **A** agreement | parser and LLM match within 1 unit of scale | only one extractor found a value | they disagree |
-| **L** label | rapidfuzz score of row label vs synonyms (0–1, continuous) | | |
-| **P** period + unit | column date = fiscal year end **and** scale detected | one of the two | neither |
-| **V** validation | every check on this value passed (N/A counts as pass) | | any check failed |
-
-Derived values (e.g. liabilities = L&E − equity) are **capped at 0.75**, so they always reach a human.
-
-**Routing:** auto-approve iff value present **and** C ≥ threshold **and** no failed check of any severity. The PS requires a pause whenever a validation check fails, so this must hold even when someone lowers the threshold slider below 0.80. Severity only changes the badge and reason text: hard = "possible error", soft = "anomaly".
+**Automated decision (PS Step 5):** auto-approve iff value present **and** C ≥ threshold **and** no failed check of any severity. Otherwise escalate. The PS requires a pause whenever confidence is low **or** a validation check fails, whatever the threshold slider says. Severity only changes the badge and reason text: hard = "possible error", soft = "anomaly".
 
 ## 8. Storage
 

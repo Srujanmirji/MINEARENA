@@ -56,7 +56,7 @@ class ExtractedValue(BaseModel):
     column_header: str = ""                  # "Sep. 28, 2024"
 
     confidence: float = 0.0
-    signals: dict[str, float] = Field(default_factory=dict)   # agreement, label, period_unit, validation
+    signals: dict[str, float] = Field(default_factory=dict)   # agreement, label, period_unit
     validation: list[dict] = Field(default_factory=list)      # [{"check","severity","status","detail"}]
     status: Status = "extracted"
     escalation_reason: str | None = None

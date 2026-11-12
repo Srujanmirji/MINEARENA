@@ -28,13 +28,13 @@ Make the workflow **pause, survive a crash, and resume without doing anything tw
 ### 1:15–1:45 PM — Repo + contract
 - [ ] Create the repo skeleton: all folders with `__init__.py`, `requirements.txt`, `.env.example`, `.gitignore` (see `CONTRIBUTING.md`)
 - [ ] `core/models.py`: copy from `docs/DATA_MODEL.md` §1 **exactly** (9 metrics incl. `operating_income`; `extractor`, `table_index` fields; deterministic `decision_id`)
-- [ ] `core/config.py`: load `.env`; `THRESHOLD`, `YOY_THRESHOLD`, `SEC_USER_AGENT`, `LLM_PROVIDER`; `SYNONYMS` from DATA_MODEL §5; `WEIGHTS = {"agreement":0.35,"label":0.25,"period_unit":0.20,"validation":0.20}`; `DERIVED_CAP = 0.75`; `YOY_THRESHOLD` default 0.40; `TICKERS = ["AAPL","MSFT","NVDA","WMT","TSLA"]`
+- [ ] `core/config.py`: load `.env`; `THRESHOLD`, `YOY_THRESHOLD`, `SEC_USER_AGENT`, `LLM_PROVIDER`; `SYNONYMS` from DATA_MODEL §5; `WEIGHTS = {"agreement":0.45,"label":0.30,"period_unit":0.25}`; `DERIVED_CAP = 0.75`; `YOY_THRESHOLD` default 0.40; `TICKERS = ["AAPL","MSFT","NVDA","WMT","TSLA"]`
 - [ ] Push. Tell the group "contract is merged"
 
 ### 1:45–3:00 PM — DB + graph skeleton
 - [ ] `core/db.py`: `init_db()` (all tables except `audit_log`, which Srujan's `audit.log.init_tables()` creates; call it from `init_db`), `upsert_values`, `set_status`, `record_decision`, `get_values(thread_id|ticker)`, `get_config/set_config`
 - [ ] `agent/state.py`: `AuditState` TypedDict (ARCHITECTURE §3)
-- [ ] `agent/nodes.py`: all 11 nodes, in the order fetch → locate → extract → **validate → score** → route → auto_approve → review loop → verify → report. Real `human_review` / `apply_decision` / `auto_approve`; others call stubs for now
+- [ ] `agent/nodes.py`: all 11 nodes, in the order fetch → locate → extract → **score_confidence → validate** → route (matches PS Steps 3 → 4) → auto_approve → review loop → verify → report. Real `human_review` / `apply_decision` / `auto_approve`; others call stubs for now
 - [ ] `agent/graph.py`: `build_graph()` with edges + conditional edges; long-lived `SqliteSaver` (see below)
 
 ```python

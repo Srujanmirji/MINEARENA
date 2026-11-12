@@ -94,15 +94,15 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 **Accept:** for AAPL, all 9 metrics match the 9 REAL rows in `data/mock_values.json`, each with `source_snippet` filled.
 
 ### FR-3 Confidence scoring — *Srujan*
-- **C = 0.35·A + 0.25·L + 0.20·P + 0.20·V**: A = parser/LLM agreement, L = label match, P = period + unit, V = validation (details in `docs/ARCHITECTURE.md` §7).
+- **C = 0.45·A + 0.30·L + 0.25·P**: A = parser/LLM agreement, L = label match, P = period + unit (details in `docs/ARCHITECTURE.md` §6). Confidence measures *did we read it right*; validation (FR-4) separately measures *does it make sense*.
 - Derived values are capped at 0.75 so they always reach a human.
 - Threshold configurable (default 0.85) from `.env` and the UI slider.
-- Each value stores its four parts so the UI can explain the score.
+- Each value stores its three parts so the UI can explain the score.
 
 **Accept:** changing the threshold from 0.85 to 0.6 changes the number of escalated values on the next run.
 
 ### FR-4 Validation engine — *Srujan*
-Runs **before** scoring.
+Runs **after** confidence scoring, matching PS workflow Steps 3 → 4.
 - **Accounting equation (hard):** |Assets − (Liabilities + Equity)| / Assets ≤ 0.5%; retry with equity including noncontrolling interest before flagging.
 - **Segment sum (hard when available):** Σ segment revenue vs total revenue ≤ 0.5%; otherwise "N/A".
 - **Year-on-year (soft):** change above `YOY_THRESHOLD` (default 40%) is an anomaly.

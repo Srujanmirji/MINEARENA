@@ -78,7 +78,7 @@ You do not write backend code. Everything you need comes through `ui/api_client.
 │                                                                      │
 │ Confidence  ███████░░░  0.68   (threshold 0.85)                      │
 │   A agreement ░░░░░░░░░░ 0.0   L label ████░░░░░░ 0.42               │
-│   P period+unit ██████████ 1.0  V validation ░░░░░░░░░░ 0.0          │
+│   P period+unit ██████████ 1.0   Checks: ❌ A=L+E  ✅ YoY  ✅ sign     │
 │   Parser (A): 72,913   LLM (B): 74,180   ← disagree                  │
 │                                                                      │
 │ ⚠ Why escalated: A = L + E off by 2.1% (equity may exclude NCI);     │
