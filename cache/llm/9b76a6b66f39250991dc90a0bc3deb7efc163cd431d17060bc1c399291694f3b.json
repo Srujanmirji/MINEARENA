@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "Total net sales",
+      "current_value": 391035,
+      "prior_value": 383285,
+      "column_header": "September 28,2024",
+      "snippet": "Total net sales | 391,035 | 383,285 | 394,328"
+    },
+    {
+      "metric": "operating_income",
+      "row_label": "Operating income",
+      "current_value": 123216,
+      "prior_value": 114301,
+      "column_header": "September 28,2024",
+      "snippet": "Operating income | 123,216 | 114,301 | 119,437"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "Net income",
+      "current_value": 93736,
+      "prior_value": 96995,
+      "column_header": "September 28,2024",
+      "snippet": "Net income | $ | 93,736 | $ | 96,995 | $ | 99,803"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Diluted",
+      "current_value": 6.08,
+      "prior_value": 6.13,
+      "column_header": "September 28,2024",
+      "snippet": "Diluted | $ | 6.08 | $ | 6.13 | $ | 6.11"
+    }
+  ]
+}
