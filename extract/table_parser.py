@@ -47,24 +47,24 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
     """
     df = pd.read_html(io.StringIO(table_html))[0]
 
-    # 1. Identify date / period columns from top header rows
-    col_dates: dict[int, str] = {}
+    # 1. Identify date / period columns from top header rows, normalized to 4-digit year
+    col_years: dict[int, str] = {}
     for r_idx in range(min(6, len(df))):
         for c_idx in df.columns:
             val = str(df.iloc[r_idx, c_idx])
             m = re.search(r"\b(202\d|201\d)\b", val)
-            if m and c_idx not in col_dates:
-                col_dates[c_idx] = val
+            if m and c_idx not in col_years:
+                col_years[c_idx] = m.group(0)
 
-    # Group columns by date
-    date_groups: list[tuple[str, list[int]]] = []
-    seen_dates: set[str] = set()
-    for c_idx in sorted(col_dates.keys()):
-        d_val = re.sub(r"\s+", " ", col_dates[c_idx]).strip()
-        if d_val not in seen_dates:
-            seen_dates.add(d_val)
-            date_groups.append((d_val, []))
-        date_groups[-1][1].append(c_idx)
+    # Group columns by normalized year
+    year_groups: list[tuple[str, list[int]]] = []
+    seen_years: set[str] = set()
+    for c_idx in sorted(col_years.keys()):
+        y = col_years[c_idx]
+        if y not in seen_years:
+            seen_years.add(y)
+            year_groups.append((y, []))
+        year_groups[-1][1].append(c_idx)
 
     # 2. Extract parsed rows with label, values per date group, and snippet
     soup = BeautifulSoup(table_html, "lxml")
@@ -90,9 +90,9 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
         if not label:
             continue
 
-        # Extract values for date groups (group 0 = current year, group 1 = prior year)
+        # Extract values for year groups (group 0 = current year, group 1 = prior year)
         vals_by_group: list[float | None] = []
-        for _, cols in date_groups:
+        for _, cols in year_groups:
             g_val: float | None = None
             for c in cols:
                 cn = _clean_num(row[c])
@@ -101,8 +101,8 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
                     break
             vals_by_group.append(g_val)
 
-        # Fallback if no date groups detected
-        if not date_groups:
+        # Fallback if no year groups detected
+        if not year_groups:
             seq_nums: list[float] = []
             for c in df.columns:
                 cn = _clean_num(row[c])
@@ -111,14 +111,16 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
             vals_by_group = seq_nums
 
         if any(v is not None for v in vals_by_group):
+            hist = {y: v for (y, _), v in zip(year_groups, vals_by_group) if v is not None}
             parsed_rows.append({
                 "label": label,
                 "values": vals_by_group,
+                "history": hist,
                 "snippet": tr_text,
-                "header": date_groups[0][0] if date_groups else "",
+                "header": year_groups[0][0] if year_groups else "",
             })
 
-    # 3. Match metrics using rapidfuzz against SYNONYMS
+    # 3. Match metrics using rapidfuzz against SYNONYMS with semantic filtering
     results: dict[str, dict] = {}
     for metric in target_metrics:
         syns = SYNONYMS.get(metric, [metric])
@@ -126,16 +128,34 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
         best_score = -1.0
 
         for r in parsed_rows:
-            lbl = r["label"].lower()
-            # For eps_diluted, ignore rows representing share counts (> 1000)
+            lbl = r["label"].lower().strip()
+
+            # Rule filters to prevent false positive matches
             if metric == "eps_diluted":
                 if r["values"] and r["values"][0] is not None and abs(r["values"][0]) > 1000:
                     continue
                 if "diluted" not in lbl:
                     continue
 
+            if metric == "total_liabilities":
+                if "current" in lbl or "total" not in lbl:
+                    continue
+
+            if metric == "net_income":
+                if "interest" in lbl or "operating" in lbl:
+                    continue
+
             # rapidfuzz ratio
             score = max(fuzz.ratio(lbl, s.lower()) / 100.0 for s in syns)
+
+            # Boost exact domain matches
+            if metric == "net_income" and ("consolidated net income" in lbl or "net income" in lbl):
+                score = max(score, 0.95)
+            elif metric == "eps_diluted" and "diluted" in lbl and ("per share" in lbl or "per common share" in lbl or lbl == "diluted"):
+                score = max(score, 0.95)
+            elif metric == "total_liabilities" and lbl == "total liabilities":
+                score = 1.0
+
             if score > best_score:
                 best_score = score
                 best_row = r
@@ -146,6 +166,7 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
             results[metric] = {
                 "value": val,
                 "prior_value": prior,
+                "history": best_row.get("history", {}),
                 "row_label": best_row["label"],
                 "source_snippet": best_row["snippet"],
                 "column_header": best_row["header"],

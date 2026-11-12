@@ -124,8 +124,11 @@ def locate_statements(clean_html: str) -> dict[str, dict]:
 
         # Segment Reporting
         if "segment" not in located:
-            is_seg_heading = any(kw in close_text.lower() for kw in ["segment revenue", "segment results", "reportable segment", "segment information", "segments of operations"]) or \
-                             ("segment" in close_text.lower() and "note" in close_text.lower())
+            is_seg_heading = any(kw in close_text.lower() for kw in [
+                "segment revenue", "segment results", "reportable segment",
+                "segment information", "segments of operations", "company's segments",
+                "information by segment", "by reportable segment"
+            ]) or ("segment" in close_text.lower() and "note" in close_text.lower())
             if is_seg_heading and ("revenue" in t_text or "sales" in t_text):
                 located["segment"] = {
                     "index": idx,

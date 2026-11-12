@@ -96,7 +96,7 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
     Returns tuple of (list[ExtractedValue], list[dict]).
     """
     accession = meta["accession"]
-    ticker = meta["ticker"].upper()
+    ticker = meta.get("ticker", "").upper()
     cik = meta["cik"]
     fiscal_year = meta["fiscal_year"]
     period_end = meta["period_end"]
@@ -159,6 +159,7 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
                 prior_val = None
                 col_header = ""
 
+            hist = item_a.get("history", {}) if item_a else {}
             extracted_by_metric[m] = {
                 "value": val,
                 "alt_value": alt_val,
@@ -166,6 +167,7 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
                 "row_label": row_label,
                 "source_snippet": snippet,
                 "prior_value": prior_val,
+                "history": hist,
                 "column_header": col_header,
                 "table_index": st_info.get("index"),
                 "table_scale": st_info.get("scale", 1),
@@ -182,6 +184,12 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
             if assets_item.get("prior_value") is not None and equity_item.get("prior_value") is not None:
                 derived_prior = round(assets_item["prior_value"] - equity_item["prior_value"], 2)
 
+            derived_hist = {}
+            if "history" in assets_item and "history" in equity_item:
+                for y in assets_item["history"]:
+                    if y in equity_item["history"]:
+                        derived_hist[y] = round(assets_item["history"][y] - equity_item["history"][y], 2)
+
             bs_info = tables.get("balance_sheet", {})
             extracted_by_metric["total_liabilities"] = {
                 "value": derived_val,
@@ -190,6 +198,7 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
                 "row_label": "Total liabilities (derived)",
                 "source_snippet": f"Derived: {assets_item['value']} (Total assets) - {equity_item['value']} (Total equity) = {derived_val}",
                 "prior_value": derived_prior,
+                "history": derived_hist,
                 "column_header": assets_item.get("column_header", ""),
                 "table_index": bs_info.get("index"),
                 "table_scale": bs_info.get("scale", 1),
@@ -245,6 +254,7 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
             period_start=period_start,
             period_end=period_end,
             prior_value=item["prior_value"],
+            history=item.get("history", {}),
             extractor=item["extractor"],
             alt_value=item["alt_value"],
             source_page=primary_doc,

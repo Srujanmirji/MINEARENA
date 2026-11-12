@@ -57,19 +57,19 @@ URL rules: data.sec.gov uses the **10-digit** CIK (`CIK0000320193.json`); Archiv
 - [x] Print a table of what was found for all 5. Every company must have the first 3
 
 ### 5:00–8:00 PM — Two extractors  ⟵ **checkpoint 8 PM: real AAPL through the pipeline**
-- [ ] `extract/llm.py`: `ask_json(prompt) -> dict`; cache `cache/llm/<sha256(prompt)>.json`; provider from `LLM_PROVIDER`; JSON mode; retry once on parse error
-- [ ] **Extractor A**, `extract/table_parser.py`: `pandas.read_html(io.StringIO(table_html))[0]` → clean the cells ("(1,234)" → -1234, "$ 1,234" → 1234, merge `$` and value columns) → rapidfuzz best row per metric vs `SYNONYMS` → current-year and prior-year columns
-- [ ] **Extractor B**, `extract/llm_extractor.py`: send the table as plain text (rows joined with " | ") + metric list + synonyms; prompt below
+- [x] `extract/llm.py`: `ask_json(prompt) -> dict`; cache `cache/llm/<sha256(prompt)>.json`; provider from `LLM_PROVIDER`; JSON mode; retry once on parse error
+- [x] **Extractor A**, `extract/table_parser.py`: `pandas.read_html(io.StringIO(table_html))[0]` → clean the cells ("(1,234)" → -1234, "$ 1,234" → 1234, merge `$` and value columns) → rapidfuzz best row per metric vs `SYNONYMS` → current-year and prior-year columns
+- [x] **Extractor B**, `extract/llm_extractor.py`: send the table as plain text (rows joined with " | ") + metric list + synonyms; prompt below
   - **Reject any item whose `snippet` isn't found word-for-word in the table text** (normalise whitespace only)
-- [ ] `extract/extractor.py`: `extract_filing(meta, tables) -> (values, segments)`
+- [x] `extract/extractor.py`: `extract_filing(meta, tables) -> (values, segments)`
   1. Run A and B on each statement table
   2. `value` = B's answer if its snippet verified, else A's; `alt_value` = the other extractor's answer; `extractor` = "llm" or "parser"
   3. Fill `ExtractedValue`: `id=f"{accession}:{metric}"`, `source_page=primary_document`, `table_index`, `row_label`, `source_snippet`, `scale`, `period_start/end`, `prior_value`, `column_header`
   4. `period_start` = one year before `period_end` for income + cash-flow items, `None` for balance sheet
   5. Missing total liabilities? Derive `Total liabilities and equity − Total equity`, `is_derived=True`, snippet explains it
   6. Return all 9 metrics even if `value=None` (the router escalates missing values)
-- [ ] **Parser-only mode:** if the LLM fails twice, use A alone (`alt_value=None`) and print a warning
-- [ ] **Test:** AAPL output must equal the 9 rows marked `"_source": "REAL…"` in `data/mock_values.json`
+- [x] **Parser-only mode:** if the LLM fails twice, use A alone (`alt_value=None`) and print a warning
+- [x] **Test:** AAPL output must equal the 9 rows marked `"_source": "REAL…"` in `data/mock_values.json`
 
 **LLM prompt template** (keep it in `extract/prompts.py`):
 ```
@@ -90,21 +90,21 @@ Return JSON: {"items": [{"metric": "...", "row_label": "...", "current_value": n
 If the primary-document locator fails for 2 or more companies, switch `locate.py` to R pages (via `FilingSummary.xml`), **strip every `onclick`/`defref_*` link** before parsing, and note it in the README so we can disclose it to judges. Otherwise, continue below.
 
 ### 8:00–11:00 PM — All 5 + segments + evidence
-- [ ] Run all 5; print metric × company with value, row label, extractor, A vs B; eyeball it
-- [ ] Segments: from the segment note table, `[{"segment": name, "value": revenue}]` for the current year (AAPL and MSFT at least). Return `[]` if unclear; validation shows N/A
-- [ ] `extract.get_table_html(meta, table_index) -> str`: the cleaned table HTML from the cached document (Zeeshan's source endpoint highlights the row)
-- [ ] Watch for: WMT and TSLA equity incl./excl. noncontrolling interest, EPS rows (never scaled), WMT's fiscal year ending in January
+- [x] Run all 5; print metric × company with value, row label, extractor, A vs B; eyeball it
+- [x] Segments: from the segment note table, `[{"segment": name, "value": revenue}]` for the current year (AAPL and MSFT at least). Return `[]` if unclear; validation shows N/A
+- [x] `extract.get_table_html(meta, table_index) -> str`: the cleaned table HTML from the cached document (Zeeshan's source endpoint highlights the row)
+- [x] Watch for: WMT and TSLA equity incl./excl. noncontrolling interest, EPS rows (never scaled), WMT's fiscal year ending in January
 
 ### 11:00 PM–2:30 AM — Fix what Srujan's accuracy report shows
-- [ ] For every mismatch, decide: extraction bug (fix the method) or genuine ambiguity (leave it; the review flow handles it)
-- [ ] **Never** look at XBRL values to "fix" extraction. Fix the method, not the number
+- [x] For every mismatch, decide: extraction bug (fix the method) or genuine ambiguity (leave it; the review flow handles it)
+- [x] **Never** look at XBRL values to "fix" extraction. Fix the method, not the number
 
 ### 2:30–5:00 AM — Sleep
 
 ### 5:00–7:30 AM
-- [ ] Re-run all 5 to make sure `cache/` is complete; commit `cache/`
-- [ ] Bonus B-2 (do first): `extract/explain.py`: 2-sentence AI explanation per YoY/variance flag from the filing's MD&A text (labelled "AI-generated"). Never pass XBRL data to it
-- [ ] Bonus B-4 data: fill `history` = `{period_end: value}` for **every** year column the statement shows (income + cash flow usually 3 years, balance sheet 2). Sai charts it
+- [x] Re-run all 5 to make sure `cache/` is complete; commit `cache/`
+- [x] Bonus B-2 (do first): `extract/explain.py`: 2-sentence AI explanation per YoY/variance flag from the filing's MD&A text (labelled "AI-generated"). Never pass XBRL data to it
+- [x] Bonus B-4 data: fill `history` = `{period_end: value}` for **every** year column the statement shows (income + cash flow usually 3 years, balance sheet 2). Sai charts it
 
 ### 7:30 AM onward — Freeze
 - [ ] Bug fixes only; rehearse the answers to "why not use XBRL directly?" and "how do you stop hallucinated numbers?" (`docs/DEMO.md`)
