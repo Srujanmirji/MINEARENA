@@ -6,8 +6,9 @@ import { errorText } from './format';
 const DEBOUNCE_MS = 250;
 
 /** "Audit any company": search SEC's ticker list by name or ticker, then start a run for the pick. */
-export function CompanySearch({ disabled, onStart }: { disabled: boolean; onStart: (ticker: string) => void }) {
+export function CompanySearch({ disabled, onStart }: { disabled: boolean; onStart: (ticker: string, year?: number) => void }) {
   const [q, setQ] = useState('');
+  const [year, setYear] = useState<number | undefined>(undefined);
   const [hits, setHits] = useState<Company[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -48,6 +49,14 @@ export function CompanySearch({ disabled, onStart }: { disabled: boolean; onStar
           <Loader2 className="w-4 h-4 text-gray-400 animate-spin absolute right-3.5 top-1/2 -translate-y-1/2" />
         )}
       </div>
+      <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-gray-700">
+        Fiscal year
+        <select value={year ?? ''} onChange={(e) => setYear(e.target.value ? Number(e.target.value) : undefined)}
+          className="min-h-11 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900">
+          <option value="">Latest 10-K</option>
+          {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </label>
       <p id="company-search-help" className="text-xs text-gray-500 mt-2">
         Searches SEC EDGAR’s company list. Live filings are fetched directly from SEC EDGAR with full invariant verification.
       </p>
@@ -68,7 +77,7 @@ export function CompanySearch({ disabled, onStart }: { disabled: boolean; onStar
                 <button
                   type="button"
                   disabled={disabled}
-                  onClick={() => { onStart(c.ticker); setQ(''); }}
+                  onClick={() => { onStart(c.ticker, year); setQ(''); }}
                   aria-label={`Start audit of ${c.ticker}, ${c.name}`}
                   className="inline-flex items-center gap-1.5 min-h-9 px-3.5 rounded-full bg-black text-white text-xs font-semibold shrink-0 hover:bg-zinc-800 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-xs"
                 >

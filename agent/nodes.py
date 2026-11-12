@@ -90,7 +90,7 @@ def _models(values: list[dict]) -> list[ExtractedValue]:
 
 
 def _meta(state: AuditState) -> dict:
-    return {k: state.get(k) for k in ("ticker", "cik", "accession", "fiscal_year", "period_end", "primary_document")}
+    return {k: state.get(k) for k in ("ticker", "cik", "accession", "fiscal_year", "period_end", "primary_document", "form")}
 
 
 def is_mock(ticker: str) -> bool:
@@ -98,15 +98,16 @@ def is_mock(ticker: str) -> bool:
     return ticker.upper().startswith("MOCK")
 
 
-def resolve_filing(ticker: str) -> dict:
-    """Which filing a run is about. Used by fetch_filing and by the API to build thread_id."""
+def resolve_filing(ticker: str, year: int | None = None) -> dict:
+    """Which filing a run is about (latest 10-K, or the one for `year`). Used by fetch_filing and the API."""
     ticker = ticker.upper()
     if HAVE_EDGAR and not is_mock(ticker):
         from agent.mcp_tools import call_tool
-        meta = call_tool("fetch_filing", "get_filing", {"ticker": ticker})
+        meta = call_tool("fetch_filing", "get_filing", {"ticker": ticker, **({"year": year} if year else {})})
         return {"ticker": ticker, "cik": meta["cik"], "accession": meta["accession"],
                 "fiscal_year": meta["fiscal_year"], "period_end": meta["period_end"],
-                "primary_document": meta["primary_document"], "company": meta.get("company")}
+                "primary_document": meta["primary_document"], "company": meta.get("company"),
+                "form": meta.get("form", "10-K")}
     r = _mock_rows(ticker)[0]
     return {"ticker": ticker, "cik": r["cik"], "accession": r["accession"],
             "fiscal_year": r["fiscal_year"], "period_end": r["period_end"],
@@ -141,7 +142,7 @@ def _stub_confidence(v: dict, period_end: str) -> tuple[float, dict]:
 # ---------- nodes ----------
 
 def fetch_filing(state: AuditState) -> dict:
-    meta = resolve_filing(state["ticker"])
+    meta = resolve_filing(state["ticker"], state.get("year"))
     db.upsert_filing(meta)
     real = HAVE_EDGAR and not is_mock(meta["ticker"])
     print(f"[nodes] fetch_filing {meta['ticker']} -> {meta['accession']} (edgar={'real' if real else 'stub'})")

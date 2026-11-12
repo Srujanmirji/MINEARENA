@@ -5,6 +5,26 @@ import { METRIC_LABEL, errorText, shortHash } from './format';
 import { ErrorBox } from './states';
 import { useApi } from './useApi';
 
+function FilingSummary({ threadId }: { threadId: string }) {
+  const [text, setText] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function load() {
+    setBusy(true); setError(null);
+    try { setText((await api.summary(threadId)).summary); } catch (e: unknown) { setError(errorText(e)); } finally { setBusy(false); }
+  }
+  if (text) return <p aria-live="polite" className="text-sm text-gray-800 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg p-3">{text}</p>;
+  return (
+    <div>
+      <button type="button" onClick={load} disabled={busy}
+        className="min-h-11 px-4 rounded-full border border-gray-300 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black">
+        {busy ? 'Summarising…' : 'Summarise this filing in plain English'}
+      </button>
+      {error && <p role="alert" className="mt-2 text-sm text-red-800">{error}</p>}
+    </div>
+  );
+}
+
 /** The end of an audit, per run: the printable report, the reviewer's sign-off, and every decision's history. */
 export function RunAuditPanel({ threadId, isDecided }: { threadId: string; isDecided: boolean }) {
   const signoff = useApi(() => api.getSignoff(threadId));
@@ -34,6 +54,8 @@ export function RunAuditPanel({ threadId, isDecided }: { threadId: string; isDec
           <FileText className="w-4 h-4" /> Audit report (print / PDF)
         </a>
       </div>
+
+      <FilingSummary threadId={threadId} />
 
       {signed ? (
         <p role="status" className="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-emerald-950">

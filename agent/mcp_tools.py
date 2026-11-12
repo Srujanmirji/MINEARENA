@@ -22,7 +22,8 @@ TOOLS: list[dict[str, Any]] = [
         "allowed_steps": ["fetch_filing", "locate_statements", "extract"],
         "inputSchema": {
             "type": "object",
-            "properties": {"ticker": {"type": "string", "description": "Stock ticker symbol, e.g. AAPL"}},
+            "properties": {"ticker": {"type": "string", "description": "Stock ticker symbol, e.g. AAPL"},
+                           "year": {"type": "integer", "description": "Fiscal year; omit for the latest"}},
             "required": ["ticker"],
         },
     },
@@ -83,7 +84,7 @@ def call_tool(step: str, name: str, arguments: dict[str, Any]) -> dict[str, Any]
         from edgar.client import get_cik, get_latest_10k
         ticker = str(arguments["ticker"]).strip().upper()
         cik = get_cik(ticker)
-        meta = get_latest_10k(cik)
+        meta = get_latest_10k(cik, arguments.get("year"))
         return {"ticker": ticker, **meta}
 
     if name == "get_statement_tables":

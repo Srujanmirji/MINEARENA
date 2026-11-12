@@ -104,7 +104,10 @@ function ValueRow({ v }: { v: ExtractedValue }) {
       </td>
       <td className="py-3 px-4 text-xs text-gray-700">{v.period_start ? `${v.period_start} → ` : 'as of '}{v.period_end}</td>
       <td className="py-3 px-4 text-xs text-gray-700 max-w-[14rem]">{v.row_label || '—'}{v.is_derived && <span className="ml-1 text-amber-800">(derived)</span>}</td>
-      <td className="py-3 px-4 text-right tabular-nums font-semibold">{v.confidence.toFixed(2)}</td>
+      <td className="py-3 px-4 text-right tabular-nums font-semibold">
+        {v.confidence.toFixed(2)}
+        <ConfidenceBars v={v} />
+      </td>
       <td className="py-3 px-4">
         <ul className="space-y-1">
           {v.validation.map((c) => (
@@ -118,7 +121,46 @@ function ValueRow({ v }: { v: ExtractedValue }) {
       <td className="py-3 px-4">
         <span className={`text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${status.cls}`}>{status.label}</span>
         {v.escalation_reason && v.status !== 'auto_approved' && <div className="text-xs text-gray-600 mt-1 max-w-[16rem]">{v.escalation_reason}</div>}
+        {v.status === 'auto_approved' && <WhyApproved v={v} />}
       </td>
     </tr>
+  );
+}
+
+const SIGNALS: [keyof ExtractedValue['signals'], string, number][] = [
+  ['agreement', 'Readers agree', 0.45], ['label', 'Row label', 0.30], ['period_unit', 'Period / unit', 0.25],
+];
+
+/** Confidence breakdown: each part's score as a bar, weighted as in C = 0.45 A + 0.30 L + 0.25 P. */
+function ConfidenceBars({ v }: { v: ExtractedValue }) {
+  return (
+    <div className="mt-1.5 space-y-0.5" aria-label="Confidence breakdown">
+      {SIGNALS.map(([key, name, weight]) => {
+        const s = v.signals[key] ?? 0;
+        return (
+          <div key={key} className="flex items-center gap-1.5 justify-end text-[11px] font-normal text-gray-500" title={`${name}: ${s.toFixed(2)} × ${weight}`}>
+            <span className="sr-only">{name} {s.toFixed(2)}</span>
+            <span className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden" aria-hidden>
+              <span className={`block h-full rounded-full ${s >= 0.8 ? 'bg-emerald-600' : 'bg-amber-500'}`} style={{ width: `${s * 100}%` }} />
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** "Why was this auto-approved?": the evidence behind a green value, not just behind flagged ones. */
+function WhyApproved({ v }: { v: ExtractedValue }) {
+  const passed = v.validation.filter((c) => c.status === 'passed');
+  return (
+    <details className="mt-1.5 text-xs text-gray-700 max-w-[16rem]">
+      <summary className="cursor-pointer font-semibold text-emerald-800">Why auto-approved?</summary>
+      <ul className="mt-1 space-y-0.5 list-disc pl-4">
+        <li>Confidence {v.confidence.toFixed(2)} ≥ threshold: {SIGNALS.map(([k, n]) => `${n.toLowerCase()} ${(v.signals[k] ?? 0).toFixed(2)}`).join(', ')}</li>
+        <li>Both readers{v.alt_value === null ? ' (one answered)' : ''} gave {tableNumber(v, v.value)}</li>
+        <li>{passed.length} checks passed, none failed: {passed.map((c) => c.check).join(', ')}</li>
+      </ul>
+    </details>
   );
 }

@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "metric": "total_assets",
+      "row_label": "Total assets",
+      "current_value": 240321,
+      "prior_value": null,
+      "column_header": "US$",
+      "snippet": "Total assets | 7,538,869 | 240,321"
+    },
+    {
+      "metric": "total_liabilities",
+      "row_label": "Total liabilities",
+      "current_value": 69615,
+      "prior_value": null,
+      "column_header": "US$",
+      "snippet": "Total liabilities | 2,183,830 | 69,615"
+    }
+  ]
+}

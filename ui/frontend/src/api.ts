@@ -156,7 +156,8 @@ export const api = {
   searchCompanies: (q: string) => request<Company[]>('/companies' + query({ q, limit: 8 })),
 
   /** Starts a run in the background, or returns the existing one (created: false) unless force. */
-  startRun: (ticker: string, force = false) => post<StartRunResult>('/runs', { ticker, force }),
+  /** year: audit that fiscal year's 10-K instead of the latest. */
+  startRun: (ticker: string, force = false, year?: number) => post<StartRunResult>('/runs', { ticker, force, ...(year ? { year } : {}) }),
   listRuns: () => request<RunSummary[]>('/runs'),
   getRun: (threadId: string) => request<RunDetail>(`/runs/${encodeURIComponent(threadId)}`),
 
@@ -183,6 +184,8 @@ export const api = {
   getSignoff: (threadId: string) => request<{ signoff: AuditRow | null }>(`/runs/${encodeURIComponent(threadId)}/signoff`),
   signOff: (threadId: string, reviewer: string, note?: string) =>
     post<{ signoff: AuditRow }>(`/runs/${encodeURIComponent(threadId)}/signoff`, { reviewer, note }),
+  /** Plain-English AI summary of one filing's audit (labelled AI-generated). */
+  summary: (threadId: string) => request<{ summary: string }>(`/runs/${encodeURIComponent(threadId)}/summary`),
   /** Printable audit report (open in a new tab; the browser saves it as PDF). */
   auditReportUrl: (threadId: string) => `${BASE}/runs/${encodeURIComponent(threadId)}/audit-report`,
 

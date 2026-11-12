@@ -4,6 +4,8 @@ from typing import TypedDict
 
 class AuditState(TypedDict, total=False):
     ticker: str
+    year: int | None                # fiscal year to audit; None = latest 10-K
+    form: str                       # "10-K", or "20-F" for a foreign filer
     cik: str
     accession: str
     fiscal_year: int

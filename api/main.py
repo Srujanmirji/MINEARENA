@@ -10,6 +10,7 @@ memory alone, so a killed-and-restarted server shows the same paused item.
 """
 import csv
 import io
+import json
 import re
 import threading
 from contextlib import asynccontextmanager
@@ -38,6 +39,7 @@ _thread_locks: dict[str, threading.Lock] = {}
 class RunIn(BaseModel):
     ticker: str
     force: bool = False
+    year: int | None = None   # audit an older 10-K; None = latest
 
 
 class DecisionIn(BaseModel):
@@ -139,11 +141,11 @@ def _paused_threads() -> list[str]:
 
 # ---------- background job ----------
 
-def _run_graph(thread_id: str, ticker: str) -> None:
+def _run_graph(thread_id: str, ticker: str, year: int | None = None) -> None:
     try:
         threshold = float(db.get_config("threshold", config.THRESHOLD))
         with _lock_for(thread_id):
-            get_graph().invoke({"ticker": ticker, "threshold": threshold}, _cfg(thread_id))
+            get_graph().invoke({"ticker": ticker, "year": year, "threshold": threshold}, _cfg(thread_id))
     except Exception as e:   # a failed run must never take the API down
         ERRORS[thread_id] = f"{type(e).__name__}: {e}"
         print(f"[api] run {thread_id} failed: {ERRORS[thread_id]}")
@@ -201,7 +203,7 @@ def health() -> dict:
 def start_run(body: RunIn, background: BackgroundTasks) -> dict:
     ticker = body.ticker.strip().upper()
     try:
-        meta = nodes.resolve_filing(ticker)   # cached lookup; gives us fiscal_year for the thread id
+        meta = nodes.resolve_filing(ticker, body.year)   # cached lookup; gives us fiscal_year for the thread id
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"cannot find a 10-K for {ticker}: {e}")
 
@@ -223,7 +225,7 @@ def start_run(body: RunIn, background: BackgroundTasks) -> dict:
             thread_id = base
         ACTIVE.add(thread_id)   # registered before we return, so a double POST can't start it twice
 
-    background.add_task(_run_graph, thread_id, ticker)
+    background.add_task(_run_graph, thread_id, ticker, body.year)
     return {"thread_id": thread_id, "status": "running", "created": True}
 
 
@@ -541,6 +543,33 @@ def sign_off(thread_id: str, body: SignoffIn) -> dict:
                   "metric": "run_signoff", "decision": "approved", "reviewer": body.reviewer.strip(),
                   "reason": (body.note or "").strip() or "Signed off: all values reviewed and graded"})
     return {"signoff": row}
+
+
+@app.get("/runs/{thread_id}/summary")
+def filing_summary(thread_id: str) -> dict:
+    """Plain-English summary of one filing's audit, written by the LLM from OUR extracted values,
+    decisions and failed checks only (never XBRL). Cached by prompt; labelled AI-generated."""
+    values = db.get_values(thread_id=thread_id)
+    if not values:
+        raise HTTPException(status_code=404, detail="unknown thread_id or no values")
+    facts = [{"metric": v["metric"], "value": v.get("final_value") if v.get("final_value") is not None else v["value"],
+              "unit": "USD per share" if v["metric"] == "eps_diluted" else f"USD x {v['scale']:,}",
+              "status": v["status"], "failed_checks": [f"{c['check']}: {c['detail']}" for c in v["validation"] if c["status"] == "failed"]}
+             for v in values]
+    prompt = ("You are summarising an audit of one company's annual 10-K for a busy reviewer. "
+              f"Company: {values[0]['ticker']}, fiscal year ending {values[0]['period_end']}.\n"
+              f"Audit results as JSON: {json.dumps(facts)}\n"
+              "Write 3 short sentences in plain English: overall state (how many values were auto-approved vs "
+              "sent to a human), the most important flag and why it matters, and what the reviewer should do next. "
+              "Use only numbers from the JSON. Return JSON: {\"summary\": \"...\"}")
+    try:
+        from extract.llm import ask_json
+        text = str(ask_json(prompt).get("summary", "")).strip()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"summary unavailable: {e}")
+    if not text:
+        raise HTTPException(status_code=503, detail="summary unavailable: empty answer")
+    return {"summary": f"(AI-generated) {text}"}
 
 
 @app.get("/runs/{thread_id}/audit-report")

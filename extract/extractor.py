@@ -316,8 +316,19 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
     from extract.tieout import tie_out
     ties = tie_out(tables, extracted_by_metric)
     amended = _amendment_check(meta)
-    models = [v.model_copy(update={"validation": [opinion, amended, *ties.get(v.metric, [])]}) for v in models]
+    filing_type = _filing_type_check(meta)
+    models = [v.model_copy(update={"validation": [opinion, amended, filing_type, *ties.get(v.metric, [])]}) for v in models]
     return models, segments
+
+
+def _filing_type_check(meta: dict) -> dict:
+    """Hard: a 20-F (foreign filer, usually IFRS) has no US-GAAP answer key and our rules are tuned on
+    US 10-Ks, so a human reviews every value; nothing from it is auto-approved."""
+    form = meta.get("form") or "10-K"
+    if form == "20-F":
+        return {"check": "Filing type", "severity": "hard", "status": "failed",
+                "detail": "20-F (foreign filer, often IFRS): rules tuned on US 10-Ks and no US-GAAP answer key, so review every value"}
+    return {"check": "Filing type", "severity": "hard", "status": "passed", "detail": f"{form}, US GAAP"}
 
 
 def _amendment_check(meta: dict) -> dict:

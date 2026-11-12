@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Play, RefreshCw, ArrowRight } from 'lucide-react';
 import { api, type Config, type McpCallResult, type RunStatus } from '../../api';
-import { TICKERS, errorText } from './format';
+import { TICKERS, METRIC_LABEL, errorText } from './format';
 import { Empty, ErrorBox, Loading, StatCard } from './states';
 import { useApi } from './useApi';
 import { CompanySearch } from './CompanySearch';
@@ -50,12 +50,12 @@ export function RunsTab({ onReview, onConfigChange, config }: Props) {
     return () => clearInterval(id);
   }, [shouldPoll, reload, reloadHealth]);
 
-  async function start(ticker: string, force = false) {
+  async function start(ticker: string, force = false, year?: number) {
     setStarting(ticker);
     setStartError(null);
     setStartNotice(null);
     try {
-      const res = await api.startRun(ticker, force);
+      const res = await api.startRun(ticker, force, year);
       setStartNotice({ threadId: res.thread_id, ticker: ticker.toUpperCase(), status: res.status, created: res.created });
       runs.reload();
       setTimeout(() => {
@@ -147,7 +147,7 @@ export function RunsTab({ onReview, onConfigChange, config }: Props) {
           Demo companies (cached for instant offline operation). Running an existing company reopens its state ledger instead of re-downloading.
         </p>
 
-        <CompanySearch disabled={starting !== null} onStart={(t) => start(t)} />
+        <CompanySearch disabled={starting !== null} onStart={(t, y) => start(t, false, y)} />
         {startNotice && (() => {
           const matched = list.find((r) => r.thread_id === startNotice.threadId);
           const status = matched?.status ?? startNotice.status;
@@ -338,32 +338,57 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
   const audit = useApi(() => api.audit(200));
 
   if (!config) return null;
+  const savedEq = config.equation_tolerance ?? 0.005;
   const t = threshold ?? config.threshold;
   const y = yoy ?? config.yoy_threshold;
-  const eq = eqTol ?? config.equation_tolerance ?? 0.005;
+  const eq = eqTol ?? savedEq;
+  const isDirty = Math.abs(t - config.threshold) > 1e-6 || Math.abs(y - config.yoy_threshold) > 1e-6 || Math.abs(eq - savedEq) > 1e-6;
 
-  // Live "What-if" simulation across already-extracted values.
+  // Evaluate routing for any (threshold, yoy, eqTol) triple across extracted values.
   const allVals = values.data ?? [];
-  const sim = allVals.reduce((acc, v) => {
-    const yoyFail = v.value !== null && v.prior_value
-      ? Math.abs((v.value - v.prior_value) / Math.abs(v.prior_value)) > y
-      : false;
-    const eqOrOtherFail = (v.validation ?? []).some((c) => {
-      if (c.check === 'Year-on-year') return false;
-      if (c.check === 'A = L + E' || c.check === 'Segment sum') {
-        const m = c.detail.match(/([\d.]+)%/);
-        return m ? Number(m[1]) / 100 > eq : c.status === 'failed';
+  function evalRouting(th: number, yoyLim: number, eqLim: number) {
+    let auto = 0;
+    let escalated = 0;
+    let byConf = 0;
+    let byYoy = 0;
+    let byEq = 0;
+    let bySafety = 0;
+    const autoIds = new Set<string>();
+
+    for (const v of allVals) {
+      const yoyFail = v.value !== null && v.prior_value
+        ? Math.abs((v.value - v.prior_value) / Math.abs(v.prior_value)) > yoyLim
+        : false;
+      const eqOrOtherFail = (v.validation ?? []).some((c) => {
+        if (c.check === 'Year-on-year') return false;
+        if (c.check === 'A = L + E' || c.check === 'Segment sum') {
+          const m = c.detail.match(/([\d.]+)%/);
+          return m ? Number(m[1]) / 100 > eqLim : c.status === 'failed';
+        }
+        return c.status === 'failed';
+      });
+      const safetyFail = v.value === null || v.is_derived || (v.signals.label ?? 0) < 0.8;
+      const confFail = v.confidence < th;
+
+      if (!yoyFail && !eqOrOtherFail && !safetyFail && !confFail) {
+        auto += 1;
+        autoIds.add(v.id);
+      } else {
+        escalated += 1;
+        if (eqOrOtherFail) byEq += 1;
+        else if (yoyFail) byYoy += 1;
+        else if (safetyFail) bySafety += 1;
+        else if (confFail) byConf += 1;
       }
-      return c.status === 'failed';
-    });
-    const ruleFail = v.value === null || yoyFail || eqOrOtherFail || (v.signals.label ?? 0) < 0.8;
-    if (!ruleFail && v.confidence >= t) acc.auto += 1;
-    else {
-      acc.escalated += 1;
-      if (ruleFail) acc.ruleBlocked += 1;
     }
-    return acc;
-  }, { auto: 0, escalated: 0, ruleBlocked: 0 });
+    return { auto, escalated, byConf, byYoy, byEq, bySafety, autoIds };
+  }
+
+  const sim = evalRouting(t, y, eq);
+  const baseline = evalRouting(config.threshold, config.yoy_threshold, savedEq);
+  const autoDelta = sim.auto - baseline.auto;
+  const flipped = allVals.filter((v) => sim.autoIds.has(v.id) !== baseline.autoIds.has(v.id));
+  const autoPct = allVals.length ? Math.round((sim.auto / allVals.length) * 100) : 0;
 
   // Adaptive escalation threshold from human reviewer feedback (PS-01 Bonus Hint #3 / PRD B-1).
   const humanRows = (audit.data ?? []).filter((r) => r.decision !== 'auto_approved');
@@ -377,6 +402,13 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
         ? Math.min(0.95, Math.round((config.threshold + 0.02) * 100) / 100)
         : config.threshold)
     : null;
+
+  function applyPreset(nextT: number, nextY: number, nextEq: number) {
+    setThreshold(nextT);
+    setYoy(nextY);
+    setEqTol(nextEq);
+    setMsg(null);
+  }
 
   async function save(next?: { threshold: number; yoy_threshold: number; equation_tolerance: number }) {
     setSaving(true);
@@ -396,37 +428,108 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
     }
   }
 
+  const presets: { label: string; desc: string; t: number; y: number; eq: number }[] = [
+    { label: 'Strict Audit', desc: '0.92 · 25% · 0.2%', t: 0.92, y: 0.25, eq: 0.002 },
+    { label: 'Balanced (Default)', desc: '0.85 · 40% · 0.5%', t: 0.85, y: 0.4, eq: 0.005 },
+    { label: 'Fast Pass / NCI-Tolerant', desc: '0.80 · 60% · 0.6%', t: 0.8, y: 0.6, eq: 0.006 },
+  ];
+
   return (
     <section
       aria-labelledby="settings-heading"
-      className="animate-dashboard-item delay-300 bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/80 p-6 md:p-7 shadow-xs hover:shadow-md transition-shadow duration-300 space-y-4"
+      className="animate-dashboard-item delay-300 bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/80 p-6 md:p-7 shadow-xs hover:shadow-md transition-shadow duration-300 space-y-5"
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="settings-heading" className="text-base font-bold text-gray-900">
             Verification Thresholds &amp; Adaptive Calibration
           </h2>
           <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
-            Apply to new runs only. A failed validation invariant check always pauses for human review, regardless of confidence score.
+            Configure when extracted 10-K metrics auto-approve vs. pause for human review. Failed validation rules always escalate.
           </p>
         </div>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => save({ threshold: 0.85, yoy_threshold: 0.4, equation_tolerance: 0.005 })}
-          className="text-xs font-semibold text-gray-600 hover:text-black underline disabled:opacity-50 cursor-pointer"
-        >
-          Reset defaults (0.85 · 40% · 0.5%)
-        </button>
+
+        {/* 1-Click Audit Mode Presets */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {presets.map((p) => {
+            const active = Math.abs(t - p.t) < 1e-6 && Math.abs(y - p.y) < 1e-6 && Math.abs(eq - p.eq) < 1e-6;
+            return (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => applyPreset(p.t, p.y, p.eq)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                  active
+                    ? 'bg-black text-white border-black shadow-2xs'
+                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                }`}
+              >
+                {p.label} <span className={`font-mono text-[11px] ${active ? 'text-gray-300' : 'text-gray-500'}`}>({p.desc})</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* #4: Routing guardrails strip */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-700 flex flex-wrap gap-x-6 gap-y-1">
-        <span><strong className="text-gray-900">Score formula:</strong> 0.45 Agreement + 0.30 Label + 0.25 Period/Unit</span>
-        <span><strong className="text-gray-900">Hard safety floors:</strong> Label match ≥ 0.80 · Derived values capped at 0.75 · Any failed check always escalates</span>
+      {/* Visual 3-Signal Formula Breakdown + Hard Safety Gates */}
+      <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs font-bold text-gray-900">
+            How Confidence Is Calculated:{' '}
+            <code className="font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-900">
+              C = 0.45·Agreement + 0.30·Label + 0.25·Period/Unit
+            </code>
+          </div>
+          <span className="text-[11px] text-gray-500 font-medium">Range 0.00 – 1.00 (scored independently of validation)</span>
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-2.5 text-xs">
+          <div className="bg-white rounded-lg border border-gray-200/80 p-3">
+            <div className="flex items-center justify-between font-bold text-gray-900">
+              <span>1. Extractor Agreement (A)</span>
+              <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">45% weight</span>
+            </div>
+            <p className="text-gray-600 mt-1 leading-relaxed">
+              Compares deterministic <strong>HTML Table Parser</strong> vs. <strong>LLM Extractor</strong>. Scores <code className="font-mono">1.00</code> if within 1 table unit (<code className="font-mono">$0.01</code> for EPS), <code className="font-mono">0.50</code> if single-source, <code className="font-mono">0.00</code> if they disagree.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200/80 p-3">
+            <div className="flex items-center justify-between font-bold text-gray-900">
+              <span>2. Row Label Match (L)</span>
+              <span className="font-mono text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">30% weight</span>
+            </div>
+            <p className="text-gray-600 mt-1 leading-relaxed">
+              RapidFuzz <code className="font-mono">fuzz.ratio / 100</code> against GAAP synonyms. <strong>Weak-signal gate:</strong> any row with <code className="font-mono">L &lt; 0.80</code> is forced to human review even if <code className="font-mono">C ≥ {t.toFixed(2)}</code>.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200/80 p-3">
+            <div className="flex items-center justify-between font-bold text-gray-900">
+              <span>3. Period &amp; Unit Sanity (P)</span>
+              <span className="font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">25% weight</span>
+            </div>
+            <p className="text-gray-600 mt-1 leading-relaxed">
+              Formula: <code className="font-mono">(period_ok + scale_ok) / 2</code>. Scores <code className="font-mono">1.00</code> when the column matches the 10-K FY end and the table header scale (<code className="font-mono">in millions</code>) is detected.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
+          <span className="font-bold text-gray-700 uppercase tracking-wider">Non-negotiable safety overrides:</span>
+          <span className="px-2 py-0.5 rounded-md bg-amber-100/80 text-amber-950 border border-amber-200 font-medium">
+            Derived values (e.g. A − E) capped at C ≤ 0.75
+          </span>
+          <span className="px-2 py-0.5 rounded-md bg-amber-100/80 text-amber-950 border border-amber-200 font-medium">
+            Weak label (L &lt; 0.80) always escalates
+          </span>
+          <span className="px-2 py-0.5 rounded-md bg-red-100/70 text-red-900 border border-red-200 font-medium">
+            Any failed check (A = L + E, Segment, YoY, Scale, Opinion) always escalates
+          </span>
+        </div>
       </div>
 
-      {/* #1: 3 configurable sliders */}
+      {/* 3 Configurable Sliders with Plain-English Helper Labels */}
       <div className="grid sm:grid-cols-3 gap-5">
         <label className="block bg-gray-50/70 p-4 rounded-xl border border-gray-200/70">
           <span className="flex justify-between font-semibold text-gray-800 text-sm">
@@ -442,8 +545,12 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
             onChange={(e) => setThreshold(Number(e.target.value))}
             className="w-full mt-3 accent-black cursor-pointer"
           />
-          <span className="block text-[11px] text-gray-500 mt-1">Default 0.85 (range 0.50–0.99)</span>
+          <span className="flex justify-between text-[11px] text-gray-500 mt-1">
+            <span>← More auto-approved</span>
+            <span>More human review →</span>
+          </span>
         </label>
+
         <label className="block bg-gray-50/70 p-4 rounded-xl border border-gray-200/70">
           <span className="flex justify-between font-semibold text-gray-800 text-sm">
             <span>Year-on-year anomaly flag</span>
@@ -458,8 +565,12 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
             onChange={(e) => setYoy(Number(e.target.value))}
             className="w-full mt-3 accent-black cursor-pointer"
           />
-          <span className="block text-[11px] text-gray-500 mt-1">Default 40% (soft anomaly check)</span>
+          <span className="flex justify-between text-[11px] text-gray-500 mt-1">
+            <span>← Flag smaller swings</span>
+            <span>Allow big growth →</span>
+          </span>
         </label>
+
         <label className="block bg-gray-50/70 p-4 rounded-xl border border-gray-200/70">
           <span className="flex justify-between font-semibold text-gray-800 text-sm">
             <span>A = L + E &amp; segment tolerance</span>
@@ -474,59 +585,135 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
             onChange={(e) => setEqTol(Number(e.target.value))}
             className="w-full mt-3 accent-black cursor-pointer"
           />
-          <span className="block text-[11px] text-gray-500 mt-1">Default 0.5% (TSLA NCI gap is 0.52%)</span>
+          <span className="flex justify-between text-[11px] text-gray-500 mt-1">
+            <span>← Strict (0.1%)</span>
+            <span>TSLA NCI = 0.52% →</span>
+          </span>
         </label>
       </div>
 
-      {/* #2: Live What-If simulation preview */}
+      {/* #2: Visual What-If Simulation Split Bar & Escalation Breakdown */}
       {allVals.length > 0 && (
-        <div className="bg-blue-50/60 border border-blue-200 rounded-xl px-3.5 py-2.5 text-xs text-blue-950 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <strong>What-if simulation on {allVals.length} extracted values:</strong>{' '}
-            at confidence <span className="font-mono font-bold">≥ {t.toFixed(2)}</span>, YoY <span className="font-mono font-bold">{Math.round(y * 100)}%</span>, tolerance <span className="font-mono font-bold">{(eq * 100).toFixed(1)}%</span>{' '}
-            → <strong className="text-emerald-800">{sim.auto} auto-approved</strong> · <strong className="text-amber-900">{sim.escalated} escalated</strong>{' '}
-            <span className="text-gray-600">({sim.ruleBlocked} held by validation/label rules regardless of confidence slider)</span>
+        <div className="bg-blue-50/50 border border-blue-200 rounded-xl p-4 space-y-3 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-bold text-gray-900">
+              Live What-If Simulation across {allVals.length} extracted values
+              {autoDelta !== 0 && (
+                <span className={`ml-2 px-2 py-0.5 rounded-full font-semibold ${autoDelta > 0 ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'}`}>
+                  {autoDelta > 0 ? `+${autoDelta} more auto-approved vs saved` : `${Math.abs(autoDelta)} more sent to human vs saved`}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 font-semibold tabular-nums">
+              <span className="text-emerald-800">✓ {sim.auto} Auto-approved ({autoPct}%)</span>
+              <span className="text-amber-900">⏸ {sim.escalated} Escalated ({100 - autoPct}%)</span>
+            </div>
+          </div>
+
+          {/* Visual Stacked Progress Bar */}
+          <div className="h-3 w-full rounded-full bg-amber-200/80 overflow-hidden flex">
+            <div
+              className="h-full bg-emerald-600 transition-all duration-300"
+              style={{ width: `${autoPct}%` }}
+              title={`${sim.auto} auto-approved`}
+            />
+          </div>
+
+          {/* Why the escalated ones are held */}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-700">
+            <div className="flex flex-wrap gap-2">
+              <span className="font-semibold text-gray-800">Why {sim.escalated} escalate:</span>
+              <span className="px-2 py-0.5 rounded bg-white border border-gray-200">
+                YoY &gt; {Math.round(y * 100)}%: <strong>{sim.byYoy}</strong>
+              </span>
+              <span className="px-2 py-0.5 rounded bg-white border border-gray-200">
+                A=L+E / Segment &gt; {(eq * 100).toFixed(1)}%: <strong>{sim.byEq}</strong>
+              </span>
+              <span className="px-2 py-0.5 rounded bg-white border border-gray-200">
+                Derived / Label &lt; 0.80: <strong>{sim.bySafety}</strong>
+              </span>
+              <span className="px-2 py-0.5 rounded bg-white border border-gray-200">
+                Confidence &lt; {t.toFixed(2)}: <strong>{sim.byConf}</strong>
+              </span>
+            </div>
+            {flipped.length > 0 && (
+              <div className="text-blue-950 font-medium">
+                <strong>Flipped by slider change:</strong>{' '}
+                {flipped.slice(0, 5).map((f) => `${f.ticker} ${METRIC_LABEL[f.metric]}`).join(', ')}
+                {flipped.length > 5 ? ` +${flipped.length - 5} more` : ''}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* #3: Adaptive escalation threshold from reviewer feedback */}
-      <div className="bg-amber-50/60 border border-amber-200 rounded-xl px-3.5 py-2.5 text-xs text-amber-950 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <strong>Adaptive threshold (reviewer feedback):</strong>{' '}
+      {/* #3: Side-by-Side Adaptive Escalation Threshold from Reviewer Feedback */}
+      <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 text-xs text-amber-950 flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="font-bold text-amber-950">Adaptive Threshold Calibration (from Human Audit Log)</div>
           {humanRows.length === 0 ? (
-            <span>No human decisions logged yet. Review escalated items to calibrate the threshold automatically.</span>
+            <p className="text-amber-900">No human review decisions logged yet. Approve, correct, or reject escalated values to calibrate automatically.</p>
           ) : (
-            <span>
-              {humanRows.length} human decisions logged ({approvedAsIs} approved unchanged · {changedOrRejected} corrected/rejected).{' '}
-              {suggestedThreshold !== null && suggestedThreshold !== config.threshold
-                ? `Suggested threshold: ${suggestedThreshold.toFixed(2)} (reduces false alarms while keeping all validation gates).`
-                : `Current threshold (${config.threshold.toFixed(2)}) is well-calibrated.`}
-            </span>
+            <p className="text-amber-900">
+              Logged <strong>{humanRows.length} human decisions</strong>: <strong>{approvedAsIs}</strong> approved unchanged ({Math.round((approvalRate ?? 0) * 100)}% precision) · <strong>{changedOrRejected}</strong> corrected/rejected.
+            </p>
           )}
         </div>
-        {suggestedThreshold !== null && suggestedThreshold !== t && (
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => save({ threshold: suggestedThreshold, yoy_threshold: y, equation_tolerance: eq })}
-            className="px-3 py-1 rounded-full bg-amber-900 text-white font-semibold hover:bg-amber-950 shrink-0 disabled:opacity-50 cursor-pointer"
-          >
-            Apply {suggestedThreshold.toFixed(2)}
-          </button>
+
+        {humanRows.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-1 rounded-lg bg-white border border-amber-200 font-mono text-gray-800">
+              Saved: <strong>{config.threshold.toFixed(2)}</strong>
+            </span>
+            {suggestedThreshold !== null && (
+              <span className="px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 font-mono text-amber-950">
+                Suggested: <strong>{suggestedThreshold.toFixed(2)}</strong>
+              </span>
+            )}
+            {suggestedThreshold !== null && Math.abs(suggestedThreshold - t) > 1e-6 && (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => save({ threshold: suggestedThreshold, yoy_threshold: y, equation_tolerance: eq })}
+                className="px-3.5 py-1.5 rounded-full bg-amber-900 text-white font-semibold hover:bg-amber-950 shrink-0 disabled:opacity-50 cursor-pointer"
+              >
+                Apply {suggestedThreshold.toFixed(2)}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
-      <div className="flex items-center gap-4 pt-1">
+      {/* Save Row with Unsaved Changes Indicator */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => save()}
+            className="min-h-11 px-7 rounded-full bg-black text-white text-sm font-semibold hover:bg-zinc-800 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-xl disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? 'Saving…' : isDirty ? 'Save & apply thresholds' : 'Save thresholds'}
+          </button>
+          {isDirty && !msg && (
+            <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+              ● Unsaved slider changes
+            </span>
+          )}
+          {!isDirty && !msg && (
+            <span className="text-xs text-gray-500 font-medium">✓ Matches saved configuration</span>
+          )}
+          {msg && <span role="status" className="text-sm font-semibold text-emerald-700 animate-card-left">{msg}</span>}
+        </div>
+
         <button
           type="button"
           disabled={saving}
-          onClick={() => save()}
-          className="min-h-11 px-7 rounded-full bg-black text-white text-sm font-semibold hover:bg-zinc-800 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-xl disabled:opacity-50 cursor-pointer"
+          onClick={() => save({ threshold: 0.85, yoy_threshold: 0.4, equation_tolerance: 0.005 })}
+          className="text-xs font-semibold text-gray-600 hover:text-black underline disabled:opacity-50 cursor-pointer"
         >
-          {saving ? 'Saving…' : 'Save thresholds'}
+          Reset to defaults (0.85 · 40% · 0.5%)
         </button>
-        {msg && <span role="status" className="text-sm font-semibold text-emerald-700 animate-card-left">{msg}</span>}
       </div>
     </section>
   );

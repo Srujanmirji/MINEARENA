@@ -70,10 +70,11 @@ def find_amendment(cik: str, period_end: str) -> dict | None:
     return None
 
 
-def get_latest_10k(cik: str) -> dict:
-    """Return metadata for the most recent 10-K filing.
+def get_latest_10k(cik: str, fiscal_year: int | None = None) -> dict:
+    """Return metadata for the most recent 10-K filing (or the one for `fiscal_year`).
+    Foreign private issuers file a 20-F instead; it is used when the company has no 10-K.
 
-    Returns dict with keys: accession, fiscal_year, period_end, filing_date, primary_document
+    Returns dict with keys: accession, fiscal_year, period_end, filing_date, primary_document, form
     """
     cik_pad = str(cik).zfill(10)
     url = f"https://data.sec.gov/submissions/CIK{cik_pad}.json"
@@ -81,14 +82,21 @@ def get_latest_10k(cik: str) -> dict:
     recent = data.get("filings", {}).get("recent", {})
     forms = recent.get("form", [])
 
+    def fy_of(i: int) -> int | None:
+        try:
+            return int(recent["fiscalYear"][i]) if recent.get("fiscalYear") and recent["fiscalYear"][i] else int(recent["reportDate"][i][:4])
+        except (ValueError, TypeError, IndexError, KeyError):
+            return None
+
     idx = None
-    for i, form in enumerate(forms):
-        if form == "10-K":
-            idx = i
+    for wanted in ("10-K", "20-F"):          # newest first within each form; 20-F only without any 10-K
+        idx = next((i for i, f in enumerate(forms) if f == wanted and (fiscal_year is None or fy_of(i) == fiscal_year)), None)
+        if idx is not None:
             break
 
     if idx is None:
-        raise ValueError(f"No 10-K filing found for CIK {cik}")
+        year = f" for fiscal year {fiscal_year}" if fiscal_year else ""
+        raise ValueError(f"No 10-K or 20-F filing{year} found for CIK {cik} in SEC's recent filings")
 
     accession = recent["accessionNumber"][idx]
     period_end = recent["reportDate"][idx]
@@ -114,6 +122,7 @@ def get_latest_10k(cik: str) -> dict:
         "period_end": period_end,
         "filing_date": filing_date,
         "primary_document": primary_document,
+        "form": forms[idx],
         "company": data.get("name", ""),
     }
 

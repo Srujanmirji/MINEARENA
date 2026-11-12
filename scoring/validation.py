@@ -17,7 +17,7 @@ UNITS = "Units"
 BALANCE = ("total_assets", "total_liabilities", "equity")
 MUST_BE_POSITIVE = ("revenue", "total_assets", "total_liabilities")
 # Filing-level checks made at extraction time, carried through untouched; a failed one escalates.
-CARRIED_CHECKS = ("Auditor's opinion", "Net income tie-out", "Cash tie-out", "Amended filing")
+CARRIED_CHECKS = ("Auditor's opinion", "Net income tie-out", "Cash tie-out", "Amended filing", "Filing type")
 MARGIN, EPS_SIGN = "Margin sanity", "EPS sign"
 SCALE_LOW, SCALE_HIGH = 500, 2000  # ratio band that smells like thousands vs millions
 
