@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'TT Norms Pro';
+  src: url('/fonts/tt-norms-pro-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TT Norms Pro';
+  src: url('/fonts/tt-norms-pro-semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html, body {
+  font-family: 'TT Norms Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #F5F5F5;
+  color: #000000;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+* {
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+/* Keyframes for Hero Brand Marquee */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 22s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* Keyframes for Backers Marquee */
+@keyframes backers-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.backers-track {
+  display: flex;
+  width: max-content;
+  animation: backers-marquee 30s linear infinite;
+  will-change: transform;
+}
+
+.backers-track:hover {
+  animation-play-state: paused;
+}
+
+/* ==========================================================================
+   Full-Screen Dashboard Entrance & Exit Animations
+   Apple-grade cubic-bezier curves for fluid physics feel
+   ========================================================================== */
+
+@keyframes dashboardEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.965) translateY(12px);
+    backdrop-filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes dashboardExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.97) translateY(10px);
+  }
+}
+
+@keyframes sidebarEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(-36px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes sidebarExit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+
+@keyframes cascadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardLift {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px 2px rgba(245, 158, 11, 0.22);
+  }
+}
+
+/* Utility Animation Classes */
+.animate-dashboard-in {
+  animation: dashboardEnter 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-dashboard-out {
+  animation: dashboardExit 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-sidebar-in {
+  animation: sidebarEnter 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-sidebar-out {
+  animation: sidebarExit 0.24s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-cascade-1 {
+  animation: cascadeUp 0.44s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+}
+
+.animate-cascade-2 {
+  animation: cascadeUp 0.44s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+}
+
+.animate-card-left {
+  animation: cardLift 0.48s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+}
+
+.animate-card-right {
+  animation: cardLift 0.48s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+}
+
+.animate-warning-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+
