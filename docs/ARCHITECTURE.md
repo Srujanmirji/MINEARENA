@@ -208,7 +208,7 @@ Validation answers a different question: **does this number make sense?**
 | Scale sanity | value ≈ 1,000× (or ÷1,000) the prior year → "possible scale error" | Hard |
 | Sign | revenue, total assets, total liabilities > 0; brackets read as negatives | Hard |
 
-**Automated decision (PS Step 5):** auto-approve iff value present **and** C ≥ threshold **and** no failed check of any severity. Otherwise escalate. The PS requires a pause whenever confidence is low **or** a validation check fails, whatever the threshold slider says. Severity only changes the badge and reason text: hard = "possible error", soft = "anomaly".
+**Automated decision (PS Step 5):** auto-approve iff value present **and** C ≥ threshold **and** no failed check of any severity **and** label match L ≥ 0.80. Otherwise escalate. The label floor exists because L weighs only 0.30: a wrong row such as "Net income attributable to common stockholders after preferred dividends" (L ≈ 0.53) still scores C ≈ 0.86 and would auto-approve. The PS requires a pause whenever confidence is low **or** a validation check fails, whatever the threshold slider says. Severity only changes the badge and reason text: hard = "possible error", soft = "anomaly".
 
 ## 8. Storage
 

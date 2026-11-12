@@ -56,7 +56,7 @@ Same order as the PS workflow: Step 3 confidence → Step 4 validation → Step 
   - **Scale sanity (hard):** 500 ≤ value/prior ≤ 2000 (or the reverse) → `"possible scale error"`
   - **Sign (hard):** revenue, total assets, total liabilities must be > 0
 - [ ] `scoring/router.py`: `route(values, threshold) -> (values, pending_ids)`
-  - auto-approve iff value present **and** confidence ≥ threshold (per-metric override from `config` if set) **and** no failed check of **any** severity (PS: pause whenever a validation check fails, even if the threshold slider is lowered)
+  - auto-approve iff value present **and** confidence ≥ threshold (per-metric override from `config` if set) **and** no failed check of **any** severity (PS: pause whenever a validation check fails, even if the threshold slider is lowered) **and** label match ≥ 0.80 (`LABEL_FLOOR`: L weighs only 0.30, so a wrong row with L≈0.53 would still score C≈0.86)
   - else `status="escalated"`, `escalation_reason` = failed checks + weakest signal, e.g. `"A=L+E off by 2.1%; label match 0.71"`
   - `pending_ids` ordered: failed checks first, then lowest confidence
 - [ ] `python -m scoring.router` on mock data prints: metric · confidence · status · reason

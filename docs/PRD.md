@@ -113,7 +113,7 @@ Runs **after** confidence scoring, matching PS workflow Steps 3 → 4.
 **Accept:** NVDA revenue is flagged by year-on-year; AAPL passes A = L + E; a value multiplied by 1,000 is flagged as a scale error.
 
 ### FR-5 Automated decision — *Srujan (logic), Zeeshan (graph)*
-- A value is auto-approved only if confidence ≥ threshold **and** no validation check failed (hard **or** soft) **and** it is not missing. The PS says the workflow must pause "whenever the confidence score is low **or** a validation check fails", so a failed check escalates even if the threshold is lowered.
+- A value is auto-approved only if confidence ≥ threshold **and** no validation check failed (hard **or** soft) **and** its row label matches a known synonym at ≥ 0.80 **and** it is not missing. The PS says the workflow must pause "whenever the confidence score is low **or** a validation check fails", so a failed check escalates even if the threshold is lowered.
 - Otherwise it is escalated with a reason string, e.g. *"A = L + E off by 2.1%; label match 0.71"*.
 - Auto-approvals are written to the audit log as `reviewer = "system"`.
 
