@@ -119,6 +119,15 @@ def _steps_done(thread_id: str) -> list[str]:
     return done
 
 
+def _runs_of(base: str) -> list[tuple[str, str]]:
+    """Every run of one filing (base, base-r2, base-r3, ...) with its status, oldest first."""
+    def order(t: str) -> int:
+        suffix = t[len(base):]
+        return 1 if not suffix else int(suffix[2:]) if suffix[2:].isdigit() else 10**6
+    tids = [t for t in _known_threads() if t == base or (t.startswith(base + "-r") and _exists(t))]
+    return [(t, _status(t, _snapshot(t))[0]) for t in sorted(tids, key=order)]
+
+
 def _known_threads() -> list[str]:
     """Rebuilt from app.db AND checkpoints.db, so it survives a restart (startup recovery)."""
     return sorted(set(db.list_thread_ids()) | set(list_checkpoint_threads()) | ACTIVE | set(ERRORS))
@@ -185,15 +194,20 @@ def start_run(body: RunIn, background: BackgroundTasks) -> dict:
 
     base = f"{ticker}-{meta['fiscal_year']}"
     with _registry_lock:
-        thread_id = base
-        if _exists(base):
+        runs = _runs_of(base)                      # [(thread_id, status)], oldest first
+        if runs:
+            latest, latest_status = runs[-1]
             if not body.force:
-                status, _ = _status(base, _snapshot(base))
-                return {"thread_id": base, "status": status, "created": False}
-            n = 2
-            while _exists(f"{base}-r{n}"):
-                n += 1
-            thread_id = f"{base}-r{n}"
+                return {"thread_id": latest, "status": latest_status, "created": False}
+            active = [(t, s) for t, s in runs if s in ("running", "paused")]
+            if active:   # a re-run would take this filing's values away from a run still in use
+                t, s = active[-1]
+                raise HTTPException(status_code=409, detail=f"{t} is still {s}; finish its review before re-running")
+            thread_id = f"{base}-r{len(runs) + 1}"
+            while _exists(thread_id):
+                thread_id += "x"
+        else:
+            thread_id = base
         ACTIVE.add(thread_id)   # registered before we return, so a double POST can't start it twice
 
     background.add_task(_run_graph, thread_id, ticker)

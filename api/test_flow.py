@@ -293,14 +293,33 @@ def main() -> int:
         unknown = c.get("/report", params={"thread_id": "nope-1999"}).status_code
         check("   GET /report 404 for an unknown run", unknown == 404, str(unknown))
 
-        # ---- force re-run: new thread id, original untouched
+        # ---- force re-run: new thread that owns the filing's values; refused while one is active
+        audit_before = count(data_dir, "SELECT COUNT(*) FROM audit_log")
         forced = c.post("/runs", json={"ticker": TICKER, "force": True}).json()
-        forced_run = wait_not_running(c, forced["thread_id"])
+        forced_tid = forced["thread_id"]
+        forced_run = wait_not_running(c, forced_tid)
+        r2 = {r["thread_id"]: r for r in c.get("/runs").json()}.get(forced_tid, {})
+        owned = count(data_dir, "SELECT COUNT(*) FROM extracted_values WHERE thread_id=?", (forced_tid,))
+        total = count(data_dir, "SELECT COUNT(*) FROM extracted_values")
+        check("   force:true re-run gets a new thread and owns the filing's values",
+              forced["created"] is True and forced_tid == f"{tid}-r2" and forced_run["status"] == "paused"
+              and owned == n_values and total == n_values and r2.get("n_values") == n_values,
+              f"{forced_tid} {forced_run['status']}, owns {owned}/{n_values} rows, table still {total} rows")
+
         again = c.post("/runs", json={"ticker": TICKER}).json()
-        check("   POST /runs force:true starts a new thread; plain POST still returns the original",
-              forced["created"] is True and forced["thread_id"] == f"{tid}-r2"
-              and forced_run["status"] == "paused" and again["thread_id"] == tid and again["created"] is False,
-              f"{forced['thread_id']} {forced_run['status']}; plain POST -> {again['thread_id']} ({again['status']})")
+        double = c.post("/runs", json={"ticker": TICKER, "force": True})
+        check("   plain POST returns the latest run; force while it is paused -> 409 (double click)",
+              again == {"thread_id": forced_tid, "status": "paused", "created": False}
+              and double.status_code == 409,
+              f"plain -> {again['thread_id']} ({again['status']}); force -> {double.status_code} {double.json().get('detail')}")
+
+        cur = forced_run["interrupt"]["value"]["id"]
+        d = c.post(f"/runs/{forced_tid}/decision", json={"value_id": cur, "action": "approve", "reviewer": "test"}).json()
+        old_status = count(data_dir, "SELECT COUNT(*) FROM review_decisions WHERE decision_id=?", (f"{forced_tid}:{cur}",))
+        audit_after = count(data_dir, "SELECT COUNT(*) FROM audit_log")
+        check("   a decision on the re-run is its own (new decision_id), the old audit rows stay",
+              d["duplicate"] is False and old_status == 1 and audit_after > audit_before,
+              f"duplicate={d['duplicate']}, audit rows {audit_before} -> {audit_after}")
 
         contract_checks(c, samples)
 

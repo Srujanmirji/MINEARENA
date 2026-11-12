@@ -151,8 +151,21 @@ def _as_dict(v: ExtractedValue | dict) -> dict:
     return v.model_dump() if isinstance(v, ExtractedValue) else dict(v)
 
 
+VALUE_COLUMNS = [
+    "id", "thread_id", "ticker", "accession", "metric", "value", "scale", "unit", "period_start", "period_end",
+    "prior_value", "extractor", "alt_value", "source_page", "table_index", "row_label", "source_snippet",
+    "confidence", "signals_json", "validation_json", "status", "escalation_reason", "final_value", "is_derived",
+    "updated_at",
+]
+
+
 def upsert_values(values: list[ExtractedValue | dict], thread_id: str | None = None) -> None:
-    """INSERT OR IGNORE on id (accession:metric). thread_id defaults to f"{ticker}-{fiscal_year}"."""
+    """Keyed on id (accession:metric). thread_id defaults to f"{ticker}-{fiscal_year}".
+
+    Same thread (a replayed extract node): no-op, like INSERT OR IGNORE.
+    Another thread (a deliberate re-run with force:true): the new run takes the row over and
+    starts it fresh, so its values exist and its decisions never touch the old run's state.
+    """
     rows = []
     for raw in values:
         v = _as_dict(raw)
@@ -166,9 +179,14 @@ def upsert_values(values: list[ExtractedValue | dict], thread_id: str | None = N
             json.dumps(v.get("validation") or []), v.get("status", "extracted"),
             v.get("escalation_reason"), v.get("final_value"), int(bool(v.get("is_derived"))), _now(),
         ))
+    takeover = ", ".join(f"{c} = excluded.{c}" for c in VALUE_COLUMNS if c != "id")
     with closing(connect()) as conn, conn:
         conn.executemany(
-            f"INSERT OR IGNORE INTO extracted_values VALUES ({','.join('?' * 25)})", rows
+            f"""INSERT INTO extracted_values ({', '.join(VALUE_COLUMNS)})
+                VALUES ({', '.join('?' * len(VALUE_COLUMNS))})
+                ON CONFLICT(id) DO UPDATE SET {takeover}
+                WHERE extracted_values.thread_id != excluded.thread_id""",
+            rows,
         )
 
 
