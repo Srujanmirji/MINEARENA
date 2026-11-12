@@ -1,76 +1,102 @@
-# Srujan — P4: Dashboard, Audit Log, Demo + Pitch (Team Lead)
+# Srujan — P4: Scoring, Validation, Ground Truth, Audit Log + Pitch (Team Lead)
 
-**Folders you own:** `ui/`, `audit/`, `docs/`
-**Read first:** `docs/PRD.md` (all), `docs/API.md`, `docs/DEMO.md`, `docs/DATA_MODEL.md` §3 (audit_log)
+**GitHub:** `Srujanmirji` · **Folders you own:** `scoring/`, `verify/`, `audit/`, `docs/`, `data/mock_values.json`
+**Read first:** `docs/PRD.md` (all, especially FR-3/4/5/9/10/11 and §10), `docs/ARCHITECTURE.md` §5–8, `docs/DATA_MODEL.md` §2–4
 
 ## Your mission
-Make the judges **see** everything working. You own judging criteria 6 (review experience) and 7 (auditability), and you run the demo. As team lead you also run the integration checkpoints and the 6 PM / 7 AM calls.
+Decide **which values a human must see**, **prove how good the system is**, and **make every decision tamper-evident**. You own judging criteria 2 (confidence), 3 (auto vs escalate), 4 (escalation precision), 7 (auditability) and the numbers behind 1 (accuracy). You present the pitch and run the team's checkpoints.
+
+**Heaviest load on the team.** Protect your time: Sai handles the organisers, the slides and the demo clicks. If you fall behind, cut bonus B-1 first, then the segment check (show N/A).
 
 ## You depend on
 | From | What | When | Until then |
 |---|---|---|---|
-| Sai | `data/mock_values.json` | 1:45 PM | — |
-| Zeeshan | API endpoints (`/runs`, `/pending`, `/decision` first) | 4 PM | `ui/api_client.py` reads mock data |
-| Sai | `/report` data | 2 AM | Fake report dict with the API.md shape |
+| Zeeshan | `core/models.py`, `core/config.py` (WEIGHTS, SYNONYMS), `core/db.py` | 1:45 PM / 3 PM | — |
+| Mayur | Real `ExtractedValue`s for AAPL | 8 PM | Your own `data/mock_values.json` |
+| Mayur | Cached Company Facts JSON (`edgar.client.get_company_facts`) | 3 PM | — |
 
 ## Others depend on you
 | Who | What | By |
 |---|---|---|
-| Zeeshan | `audit.log.init_tables()`, `append()`, `list_rows()`, `verify_chain()` | **4 PM** |
-| Team | Integration checkpoints on time | All night |
+| Sai, Zeeshan | `data/mock_values.json` (~20 rows, DATA_MODEL §2) | **1:45 PM** |
+| Zeeshan | `audit.log`: `init_tables`, `append`, `list_rows`, `verify_chain` | **4 PM** |
+| Zeeshan | `score_values`, `validate_filing`, `route` | **7 PM** |
+| Zeeshan, Sai | `verify_values`, `build_report` (shape = `/report` in `docs/API.md`) | **2 AM** |
+| Team | Integration checkpoints run on time | All night |
 
 ---
 
 ## Timeline
 
-### 1:15–1:45 PM — Lead the contract
-- [ ] Push these docs to the repo (`docs/`, `tasks/`, `README.md`, `CONTRIBUTING.md`, `CLAUDE.md`)
-- [ ] Walk the team through `core/models.py` for 10 minutes; everyone agrees, Zeeshan merges
-- [ ] Ask the organisers the open questions (PRD §15): prizes per PS or overall, submission time and format, internet during judging
+### 1:15–1:45 PM — Contract + mock data
+- [ ] Walk the team through `core/models.py` for 5 minutes; everyone agrees; Zeeshan merges
+- [ ] `data/mock_values.json`: 20 rows with the mix in DATA_MODEL §2 (8 clean, 4 low label, 3 A = L + E breaks, 2 big YoY, 1 derived, 2 null). Push by 1:45 so Sai can start the UI
 
-### 1:45–4:00 PM — Audit log  ⟵ **deliver to Zeeshan by 4 PM**
+### 1:45–3:30 PM — Audit log  ⟵ **deliver to Zeeshan by 4 PM**
 - [ ] `audit/log.py`
   - `init_tables(conn)`: `audit_log` DDL + both triggers from DATA_MODEL §3
-  - `append(entry) -> dict`: compute `prev_hash` (last row's hash or `"GENESIS"`) + `hash`; `INSERT`; on `UNIQUE` error for `decision_id` return the existing row (idempotent)
+  - `append(entry) -> dict`: `prev_hash` = last row's hash or `"GENESIS"`; `hash = sha256(prev_hash + json.dumps(row_without_seq_and_hash, sort_keys=True, default=str))`; `INSERT`; on `UNIQUE` failure for `decision_id`, return the existing row (idempotent)
   - `list_rows(limit=200)`: newest first
-  - `verify_chain() -> {"ok", "rows", "broken_at_seq"}`: recompute every hash in `seq` order
-- [ ] Test: append 3 rows, verify OK; `UPDATE audit_log ...` in the sqlite3 shell → error; append the same `decision_id` twice → still 3 rows
+  - `verify_chain() -> {"ok", "rows", "broken_at_seq"}`: recompute in `seq` order
+- [ ] Smoke test (`python -m audit.log`): append 3 → verify OK; same `decision_id` twice → still 3 rows; `UPDATE audit_log SET decision='approved' WHERE seq=1;` in `sqlite3 data/app.db` → error
 
-### 4:00–8:00 PM — UI on mock data
-- [ ] `ui/api_client.py`: functions `start_run`, `list_runs`, `get_pending`, `submit_decision`, `get_values`, `get_validations`, `get_report`, `get_audit`, `verify_audit`, `get_config`, `set_config`. A `USE_MOCK` flag reads `data/mock_values.json`
-- [ ] `ui/app.py`: `st.set_page_config(layout="wide")`, sidebar + 5 tabs
-- [ ] **Review queue** (the most important screen):
-  - company · metric · value with unit and period, large
-  - confidence bar + the 5 signals as small bars
-  - escalation reason in a coloured box
-  - source row: show the table with the matched row highlighted (or the `source_snippet` in a code box), plus a link to the SEC page
-  - buttons **Approve** · **Correct** (number input) · **Reject** + note
-  - `decision_id`: create once per card and keep it in `st.session_state[f"did:{value_id}"]`
-- [ ] **Filings:** a "Run" button per ticker; 8-value table with status colours; step timeline
-- [ ] **Validations:** checks per company with ✅ / ❌ / N/A and detail
-- [ ] **Sidebar:** counters (auto · escalated · pending · reviewed), threshold slider (note: "applies to new runs"), API health dot
+### 3:30–7:00 PM — Confidence, validation, routing  ⟵ **deliver to Zeeshan by 7 PM**
+- [ ] `scoring/confidence.py`: `score_values(values, period_end) -> values`
+  | Signal | How |
+  |---|---|
+  | `verbatim` | Format `value` with and without commas; 1 if found in `source_snippet`, else 0. `is_derived` → 0 |
+  | `label` | `max(rapidfuzz.fuzz.token_set_ratio(row_label, s) for s in SYNONYMS[metric]) / 100` |
+  | `scale` | 1 if the header scale was read (`scale > 1`) or the metric is EPS; else 0.5 |
+  | `period` | 1 if `period_end ==` the filing's period end, else 0 |
+  | `agreement` | 1 if `alt_value == value`; 0.5 if `alt_value is None`; else 0 |
+  `confidence = round(Σ WEIGHTS[k] × signals[k], 3)`; `value is None` → 0
+- [ ] `scoring/validation.py`: `validate_filing(values, segments, yoy_threshold) -> values`
+  - **A = L + E:** tolerance 0.5% of assets; on fail, note "equity may exclude NCI" if the label lacks "noncontrolling"; attach to assets, liabilities, equity
+  - **Segment sum:** only if `segments` is non-empty, else `status: "na"`; attach to revenue
+  - **YoY:** change > threshold → `{"check":"yoy","status":"failed","detail":"+114% vs prior"}`
+- [ ] `scoring/router.py`: `route(values, threshold) -> (values, pending_ids)`
+  - auto-approve iff value present **and** confidence ≥ threshold (per-metric override from `config` if set) **and** no failed check
+  - else `status="escalated"`, `escalation_reason` = failed checks + weakest signal, e.g. `"A=L+E off by 2.1%; label match 0.71"`
+  - `pending_ids` ordered: failed checks first, then lowest confidence
+- [ ] `python -m scoring.router` on mock data prints: metric · confidence · status · reason
 
-### 8:00–11:00 PM — Real API  ⟵ **checkpoint 11 PM (you lead)**
-- [ ] Flip `USE_MOCK=False`; fix shape mismatches with Zeeshan
-- [ ] Auto-refresh: rerun every ~3 s while any run is `running` (an `st.empty()` loop or `st.rerun` after `time.sleep(3)`)
-- [ ] Full flow: Run TSLA → card appears → approve one, correct one, reject one → rows in the audit log
+> Ask your AI tool to write these. The table above *is* the spec; paste it in.
 
-### 11:00 PM–2:30 AM — Report + audit tabs + slide
-- [ ] **Accuracy report:** headline metrics (`st.metric`): accuracy, pre-review accuracy, escalation precision, auto-approval error rate; bar chart by metric; table by company; calibration table; CSV download
-- [ ] **Audit log:** dataframe newest first; **Verify chain** button → green "Chain intact (N rows)" or red "Broken at seq X"
-- [ ] Architecture slide: one slide with the diagram from `docs/ARCHITECTURE.md` §1 (redraw it cleanly) + 3 bullets
+### 7:00–8:00 PM — Real AAPL  ⟵ **checkpoint 8 PM (Mayur leads)**
+- [ ] Run your functions on Mayur's real AAPL output; check the signals look sane
 
-### 2:30–5:00 AM — Sleep
+### 8:00–11:00 PM — Ground truth
+- [ ] `verify/xbrl.py`: `verify_values(values, facts, accession) -> rows` (DATA_MODEL §4)
+  - tag list per metric; first tag with a matching fact wins
+  - match on `accn == accession` and `end == period_end`; duration metrics also need `start` ≈ one year before `end`
+  - compare in base units (`final_value × scale`); correct if within 0.1%
+  - also compute `orig_match` from the pre-review `value` (needed for escalation precision)
+  - write `verification` rows (`INSERT OR REPLACE`; re-verification is allowed)
+- [ ] **11 PM checkpoint is Sai's.** Attend, but don't drive it
 
-### 5:00–7:00 AM — Polish + rehearsal prep
-- [ ] Make the review card readable from 2 metres away (font sizes, spacing)
-- [ ] Take Sai's 3 pitch bullets; fill the real numbers into `docs/DEMO.md`
-- [ ] Bonus B-4 (3-year variance chart) only if everything is green
+### 11:00 PM–2:00 AM — Report  ⟵ **deliver to Zeeshan + Sai by 2 AM**
+- [ ] `verify/report.py`: `build_report(thread_id=None) -> dict`, exactly the `/report` shape in `docs/API.md`
+  - accuracy (final) + pre-review accuracy; by metric; by company; no-ground-truth count
+  - auto-approved / escalated / reviewed / pending
+  - **escalation precision** = escalated with `orig_match == 0` **or** a failed YoY ÷ all escalated
+  - **auto-approval error rate** = auto-approved with `match == 0` ÷ all auto-approved
+  - calibration bands `<0.6`, `0.6–0.85`, `>0.85`
+
+### 2:00–3:00 AM — All 5  ⟵ **checkpoint 3 AM (you lead)**
+- [ ] Full report for all 5; send the mismatch list to Mayur
+- [ ] **3 AM call:** if the report isn't ready, cut all bonus features
+
+### 3:00–5:00 AM — Honest tuning + pitch numbers
+- [ ] Auto-approval error rate > 0? Find out why; fix the signal or raise the threshold
+- [ ] **Pick one threshold and keep it.** Re-tuning on the same 40 values is overfitting, and judges may ask
+- [ ] Put the real numbers into `docs/DEMO.md` and give Sai 3 bullets for the results slide (accuracy, escalation precision, calibration)
+
+### 5:00–7:00 AM — Sleep
 
 ### 7:00 AM — **Feature freeze** (you announce it)
-- [ ] Set up the demo state (see `docs/DEMO.md` checklist)
-- [ ] Rehearse twice with a timer; Zeeshan watches as backup driver
-- [ ] Make sure `cache/` is committed and the final code is pushed
+- [ ] Set up the demo state (`docs/DEMO.md` checklist); make sure `cache/` is committed
+- [ ] Rehearse twice with a timer: you present, Sai drives, Zeeshan does the kill-and-restart
+- [ ] Bonus B-1 (adaptive thresholds) **only** if everything is green before 7 AM, otherwise drop it
 
 ---
 
@@ -78,16 +104,22 @@ Make the judges **see** everything working. You own judging criteria 6 (review e
 | When | Call |
 |---|---|
 | 6 PM | Pause/resume not green? Everyone swarms on it |
-| Any checkpoint fails | Stop new features until it passes |
-| 3 AM | Cut bonus features if the report isn't ready |
+| Any checkpoint fails | No new features until it passes |
+| 3 AM | Report not ready? Cut all bonus features |
 | 7 AM | Freeze: no new features, period |
+
+## Rules you must not break
+- `scoring/` never reads XBRL. Only `verify/` does, and only after reviews.
+- Scoring functions are pure (values in → values out), testable on mock data.
+- Report numbers must be recomputable from `app.db`. No hand-typed numbers in slides.
+- Never UPDATE or DELETE `audit_log`.
 
 ## Starter prompt for your AI tool
 ```
-I'm Srujan, P4 on the AuditLoop repo. Read CLAUDE.md, docs/PRD.md, docs/API.md and docs/DATA_MODEL.md §3.
-I own ui/, audit/ and docs/. Only edit those.
+I'm Srujan, P4 on the AuditLoop repo. Read CLAUDE.md, docs/PRD.md (FR-3/4/5/9/10/11, §10), docs/ARCHITECTURE.md §5-8, docs/DATA_MODEL.md §2-4 and tasks/Srujan.md.
+I own scoring/, verify/, audit/, docs/ and data/mock_values.json. Only edit those.
 Task now: <paste the current timeline block>.
-The UI is Streamlit and must call the API only through ui/api_client.py (with a USE_MOCK flag reading data/mock_values.json).
-The audit log is append-only: triggers block UPDATE/DELETE, rows are SHA-256 hash-chained, append() is idempotent on decision_id.
-Show me the plan first, then the code, then how to test it.
+Scoring functions must be pure and work on ExtractedValue lists. XBRL Company Facts may only be used inside verify/.
+audit_log is append-only: triggers block UPDATE/DELETE, rows are SHA-256 hash-chained, append() is idempotent on decision_id.
+Show me the plan first, then the code, then a command to test it on data/mock_values.json.
 ```

@@ -10,15 +10,15 @@ Make the workflow **pause, survive a crash, and resume without doing anything tw
 | From | What | When | Until then |
 |---|---|---|---|
 | Mayur | `edgar.client`, `edgar.locator`, `extract.extractor` | 8 PM | Stub nodes that load `data/mock_values.json` |
-| Sai | `scoring.confidence`, `scoring.validation`, `scoring.router` | 7 PM | Stub: mark values with `confidence < 0.85` as escalated |
-| Sai | `verify.xbrl`, `verify.report` | 2 AM | Stub returning `{}` |
+| Srujan | `scoring.confidence`, `scoring.validation`, `scoring.router` | 7 PM | Stub: mark values with `confidence < 0.85` as escalated |
+| Srujan | `verify.xbrl`, `verify.report` | 2 AM | Stub returning `{}` |
 | Srujan | `audit.log.append`, `audit.log.init_tables` | 4 PM | Stub that prints |
 
 ## Others depend on you
 | Who | What | By |
 |---|---|---|
 | Everyone | `core/models.py` + `core/config.py` merged | **1:45 PM** |
-| Srujan | API endpoints in `docs/API.md` (`/runs`, `/pending`, `/decision` first) | **4 PM** |
+| Sai | API endpoints in `docs/API.md` (`/runs`, `/pending`, `/decision` first) | **4 PM** |
 | Everyone | `core/db.py` helpers | 3 PM |
 
 ---
@@ -62,12 +62,12 @@ Put these tests in `api/test_flow.py` (plain `httpx` script or pytest). Run them
 - [ ] **6 PM rule:** if tests 1–5 aren't green, call the team
 
 ### 6:00–8:00 PM — Wire real modules  ⟵ **checkpoint 8 PM (real AAPL)**
-- [ ] Replace stubs with Mayur's `edgar` + `extract` and Sai's `scoring` as they land
+- [ ] Replace stubs with Mayur's `edgar` + `extract` and Srujan's `scoring` as they land
 - [ ] Run AAPL end to end; fix serialization issues (state must hold dicts)
 
 ### 8:00–11:00 PM — UI integration  ⟵ **checkpoint 11 PM**
-- [ ] Sit with Srujan; make sure every UI call has an endpoint and matching shape
-- [ ] `GET /report`, `GET /report.csv` (call Sai's `build_report`)
+- [ ] Sit with Sai; make sure every UI call has an endpoint and matching shape
+- [ ] `GET /report`, `GET /report.csv` (call Srujan's `build_report`)
 - [ ] `POST /runs` with `force: true` → new thread id
 
 ### 11:00 PM–2:30 AM — All 5 companies
@@ -75,7 +75,7 @@ Put these tests in `api/test_flow.py` (plain `httpx` script or pytest). Run them
 - [ ] Errors set the run status to `error` with a message; they never crash the API
 
 ### 2:30–5:00 AM — Support verification  ⟵ **checkpoint 3 AM**
-- [ ] Wire Sai's `verify_vs_xbrl` + `report` nodes; re-run the test script
+- [ ] Wire Srujan's `verify_vs_xbrl` + `report` nodes; re-run the test script
 
 ### 5:00–7:30 AM — Sleep
 

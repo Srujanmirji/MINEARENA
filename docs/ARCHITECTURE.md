@@ -6,14 +6,14 @@ The agent runs inside FastAPI. Streamlit is a thin client that only calls the AP
 
 ```mermaid
 flowchart TB
-    UI["Streamlit dashboard<br/>(Srujan)"] -->|HTTP only| API["FastAPI backend<br/>(Zeeshan)"]
+    UI["Streamlit dashboard<br/>(Sai)"] -->|HTTP only| API["FastAPI backend<br/>(Zeeshan)"]
 
     subgraph Backend["FastAPI process"]
         API --> G["LangGraph agent<br/>(Zeeshan)"]
         G --> EC["edgar/ client + cache<br/>(Mayur)"]
         G --> EX["extract/ LLM + fuzzy<br/>(Mayur)"]
-        G --> SC["scoring/ confidence, validation, routing<br/>(Sai)"]
-        G --> VF["verify/ XBRL + report<br/>(Sai)"]
+        G --> SC["scoring/ confidence, validation, routing<br/>(Srujan)"]
+        G --> VF["verify/ XBRL + report<br/>(Srujan)"]
         G --> AU["audit/ append-only log<br/>(Srujan)"]
     end
 
@@ -68,14 +68,14 @@ flowchart TD
 | `fetch_filing` | `edgar.client` (Mayur) | ticker | cik, accession, fiscal_year, period_end | cache files |
 | `locate_statements` | `edgar.locator` (Mayur) | FilingSummary | pages | none |
 | `extract` | `extract.extractor` (Mayur) | pages | values, segments | `INSERT OR IGNORE` values |
-| `score_confidence` | `scoring.confidence` (Sai) | values | values (signals, confidence) | none |
-| `validate` | `scoring.validation` (Sai) | values, segments | values (validation) | none |
-| `route` | `scoring.router` (Sai) | values, threshold | values (status, reason), pending | none |
+| `score_confidence` | `scoring.confidence` (Srujan) | values | values (signals, confidence) | none |
+| `validate` | `scoring.validation` (Srujan) | values, segments | values (validation) | none |
+| `route` | `scoring.router` (Srujan) | values, threshold | values (status, reason), pending | none |
 | `auto_approve` | `agent.nodes` (Zeeshan) | values | — | idempotent status update + audit rows (`system`) |
 | `human_review` | `agent.nodes` (Zeeshan) | pending[0] | decision | **none** |
 | `apply_decision` | `agent.nodes` (Zeeshan) | decision | pending (popped), values | idempotent decision + audit row |
-| `verify_vs_xbrl` | `verify.xbrl` (Sai) | values, Company Facts | verification | `verification` rows |
-| `report` | `verify.report` (Sai) | everything | report | `run_reports` row |
+| `verify_vs_xbrl` | `verify.xbrl` (Srujan) | values, Company Facts | verification | `verification` rows |
+| `report` | `verify.report` (Srujan) | everything | report | `run_reports` row |
 
 ### Graph state
 
@@ -207,16 +207,16 @@ def locate_statements(summary: list[dict]) -> dict[str, str]      # keys: balanc
 # extract/extractor.py — Mayur
 def extract_filing(meta: dict, pages: dict[str, str]) -> tuple[list[ExtractedValue], list[dict]]  # (values, segments)
 
-# scoring/confidence.py — Sai
+# scoring/confidence.py — Srujan
 def score_values(values: list[ExtractedValue], period_end: str) -> list[ExtractedValue]
-# scoring/validation.py — Sai
+# scoring/validation.py — Srujan
 def validate_filing(values: list[ExtractedValue], segments: list[dict], yoy_threshold: float) -> list[ExtractedValue]
-# scoring/router.py — Sai
+# scoring/router.py — Srujan
 def route(values: list[ExtractedValue], threshold: float) -> tuple[list[ExtractedValue], list[str]]   # (values with status+reason, pending ids)
 
-# verify/xbrl.py — Sai
+# verify/xbrl.py — Srujan
 def verify_values(values: list[ExtractedValue], facts: dict, accession: str) -> list[dict]
-# verify/report.py — Sai
+# verify/report.py — Srujan
 def build_report(thread_id: str | None = None) -> dict
 
 # audit/log.py — Srujan

@@ -77,7 +77,7 @@ class Decision(BaseModel):
 
 ## 2. `data/mock_values.json`
 
-About 20 fake `ExtractedValue` rows so the UI (Srujan) and scoring (Sai) can start before real extraction exists. Include:
+About 20 fake `ExtractedValue` rows so the UI (Sai) and scoring (Srujan) can start before real extraction exists. Include:
 
 - 8 clean AAPL-like values (high signals, all checks pass)
 - 4 values with a low `label` signal
@@ -244,4 +244,4 @@ Try tags in order; the first one with a matching fact wins.
 | cash | cash and cash equivalents |
 | eps_diluted | diluted, diluted earnings per share, diluted net income per share |
 
-Put these in `core/config.py` as `SYNONYMS: dict[str, list[str]]` so Mayur and Sai use the same list.
+Put these in `core/config.py` as `SYNONYMS: dict[str, list[str]]` so Mayur and Srujan use the same list.

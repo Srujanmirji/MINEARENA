@@ -1,8 +1,8 @@
 # API Contract — AuditLoop (FastAPI, port 8000)
 
-Owner: **Zeeshan**. Consumer: **Srujan** (Streamlit).
+Owner: **Zeeshan**. Consumer: **Sai** (Streamlit).
 
-Streamlit never imports `agent/`. It only calls these endpoints. Until the real API is up, Srujan reads `data/mock_values.json` behind the same function names in `ui/api_client.py`.
+Streamlit never imports `agent/`. It only calls these endpoints. Until the real API is up, Sai reads `data/mock_values.json` behind the same function names in `ui/api_client.py`.
 
 Base URL: `API_BASE` from `.env` (default `http://localhost:8000`). All bodies are JSON.
 

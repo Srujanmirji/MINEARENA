@@ -14,8 +14,8 @@ AuditLoop is an agent that pulls real 10-K filings from SEC EDGAR, extracts 8 fi
 |---|---|---|---|
 | Zeeshan Madras | `dharwadzishan-sys` | P1 — Agent + backend lead | [`tasks/Zeeshan.md`](tasks/Zeeshan.md) |
 | Mayur Habib | `mayurhabib26-hub` | P2 — SEC data + extraction | [`tasks/Mayur.md`](tasks/Mayur.md) |
-| Sai Sudheer | `SaiSudhee2723` | P3 — Scoring, validation, ground truth | [`tasks/Sai.md`](tasks/Sai.md) |
-| Srujan Mirji | `Srujanmirji` | P4 — Dashboard, audit log, demo + pitch | [`tasks/Srujan.md`](tasks/Srujan.md) |
+| Sai Sudheer | `SaiSudhee2723` | P3 — Frontend + UI/UX (Streamlit dashboard, slides) | [`tasks/Sai.md`](tasks/Sai.md) |
+| Srujan Mirji | `Srujanmirji` | P4 — Scoring, validation, ground truth, audit log, pitch (lead) | [`tasks/Srujan.md`](tasks/Srujan.md) |
 
 ## Docs
 
@@ -80,12 +80,12 @@ auditloop/
 ├── core/            # shared: models.py, db.py, config.py        (Zeeshan; models.py = everyone)
 ├── edgar/           # SEC client, disk cache, page locator        (Mayur)
 ├── extract/         # LLM + fuzzy extraction                      (Mayur)
-├── scoring/         # confidence, validation, routing             (Sai)
-├── verify/          # XBRL ground truth + report                  (Sai)
+├── scoring/         # confidence, validation, routing             (Srujan)
+├── verify/          # XBRL ground truth + report                  (Srujan)
 ├── agent/           # LangGraph graph + nodes                     (Zeeshan)
 ├── api/             # FastAPI app                                 (Zeeshan)
 ├── audit/           # append-only log + hash chain                (Srujan)
-├── ui/              # Streamlit dashboard                         (Srujan)
+├── ui/              # Streamlit dashboard                         (Sai)
 ├── data/            # app.db, checkpoints.db, mock_values.json
 ├── cache/           # cached SEC + LLM responses (commit this before judging!)
 ├── docs/            # PRD, architecture, API, data model, demo

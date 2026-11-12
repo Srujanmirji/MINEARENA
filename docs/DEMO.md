@@ -1,6 +1,6 @@
 # Demo Script + Judge Q&A — AuditLoop
 
-**Driver:** Srujan · **Backup driver:** Zeeshan · **Length:** 5 minutes + Q&A
+**Presenter:** Srujan · **Driver (clicks):** Sai · **Backup driver:** Zeeshan · **Length:** 5 minutes + Q&A
 
 Rehearse it twice before judging. Every click must have been done at least 10 times before.
 

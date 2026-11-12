@@ -10,8 +10,9 @@ Four people vibe coding in parallel will collide unless we follow these rules. T
 | `core/db.py`, `core/config.py` | Zeeshan | Ask Zeeshan |
 | `agent/`, `api/` | Zeeshan | Read only |
 | `edgar/`, `extract/` | Mayur | Read only |
-| `scoring/`, `verify/` | Sai | Read only |
-| `audit/`, `ui/`, `docs/` | Srujan | Read only (docs: anyone can fix typos) |
+| `scoring/`, `verify/`, `audit/`, `data/mock_values.json` | Srujan | Read only |
+| `docs/` | Srujan | Anyone can fix typos |
+| `ui/` | Sai | Read only |
 | `tasks/<Name>.md` | That person | Tick your own boxes only |
 
 **Only edit your own folders.** If you need something changed in someone else's module, message them, or write a small adapter in your own folder.
@@ -47,8 +48,8 @@ git push origin main
 | **1:45 PM** | `core/models.py` + `data/mock_values.json` merged; everyone imports them | Zeeshan |
 | **4:00 PM** | Mock data → graph pauses → resume via API (Zeeshan's 5 tests) | Zeeshan |
 | **8:00 PM** | Real AAPL: extract → score → validate → pause on a real escalation | Mayur |
-| **11:00 PM** | UI drives approve, correct and reject; rows appear in the audit log | Srujan |
-| **3:00 AM** | All 5 companies + accuracy report vs XBRL | Sai |
+| **11:00 PM** | UI drives approve, correct and reject; rows appear in the audit log | Sai |
+| **3:00 AM** | All 5 companies + accuracy report vs XBRL | Srujan |
 | **7:00 AM** | **Feature freeze**: bug fixes and rehearsal only | Srujan |
 
 **Hard rule:** if pause/resume is not working by **6 PM**, everyone swarms on it. It carries 2 of the 8 judging criteria.
@@ -57,8 +58,8 @@ git push origin main
 
 | Time | Asleep | Awake |
 |---|---|---|
-| 2:30–5:00 AM | Mayur, Srujan | Zeeshan, Sai |
-| 5:00–7:30 AM | Zeeshan, Sai | Mayur, Srujan |
+| 2:30–5:00 AM | Mayur, Sai | Zeeshan, Srujan |
+| 5:00–7:00 AM | Zeeshan (till 7:30), Srujan | Mayur, Sai |
 
 Nobody pitches on zero sleep.
 

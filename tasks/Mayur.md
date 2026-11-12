@@ -14,9 +14,9 @@ Get **real numbers with real evidence** out of the 10-Ks: the right value, its u
 ## Others depend on you
 | Who | What | By |
 |---|---|---|
-| Everyone | `cache/` filled for all 5 companies (incl. Company Facts JSON for Sai) | **3 PM** |
+| Everyone | `cache/` filled for all 5 companies (incl. Company Facts JSON for Srujan) | **3 PM** |
 | Zeeshan | `edgar.client` + `edgar.locator` | 4 PM |
-| Zeeshan, Sai | `extract.extractor.extract_filing` on real AAPL | **8 PM** |
+| Zeeshan, Srujan | `extract.extractor.extract_filing` on real AAPL | **8 PM** |
 
 ---
 
@@ -34,7 +34,7 @@ Get **real numbers with real evidence** out of the 10-Ks: the right value, its u
   - `get_latest_10k(cik)` via `https://data.sec.gov/submissions/CIK{cik}.json`: first index where `form == "10-K"` in `filings.recent`; return `accession`, `fiscal_year`, `period_end` (`reportDate`), `filing_date`
   - `get_filing_summary(cik, accession)` → parse `<Report>` elements → `[{"file": HtmlFileName, "name": ShortName}]`
   - `get_page_html(cik, accession, file)`
-  - `get_company_facts(cik)` (download + cache only; **only Sai's `verify/` may call it**)
+  - `get_company_facts(cik)` (download + cache only; **only Srujan's `verify/` may call it**)
 - [ ] Script `python -m edgar.client --all` caches all 5 companies (AAPL, MSFT, NVDA, TSLA, JPM). Commit `cache/`
 
 Archive folder path uses the CIK **without** leading zeros and the accession **without** dashes:
@@ -83,10 +83,10 @@ Return JSON: {"items": [{"metric": "...", "row_label": "...", "current_value": n
 
 ### 8:00–11:00 PM — All 5 + segments
 - [ ] Run all 5; print a table metric × company with value + row label; eyeball it
-- [ ] Segments: from the segment page, extract `[{"segment": name, "value": revenue}]` for the current year (AAPL, MSFT at least). Return `[]` if unclear; Sai shows N/A
+- [ ] Segments: from the segment page, extract `[{"segment": name, "value": revenue}]` for the current year (AAPL, MSFT at least). Return `[]` if unclear; validation shows N/A
 - [ ] Watch for: JPM (no "Revenue" row → it's fine if confidence is low, that's the point), TSLA equity incl./excl. NCI, EPS rows in the income statement
 
-### 11:00 PM–2:30 AM — Fix what Sai's accuracy report shows
+### 11:00 PM–2:30 AM — Fix what Srujan's accuracy report shows
 - [ ] For every mismatch, decide: extraction bug (fix it) or genuine ambiguity (leave it; the review flow handles it)
 - [ ] **Never** look at XBRL values to "fix" extraction. Fix the method, not the number
 

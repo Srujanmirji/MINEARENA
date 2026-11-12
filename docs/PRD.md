@@ -90,14 +90,14 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 
 **Accept:** for AAPL, all 8 metrics are returned as `ExtractedValue` objects with `source_snippet` filled.
 
-### FR-3 Confidence scoring — *Sai*
+### FR-3 Confidence scoring — *Srujan*
 - Score 0–1 from 5 signals: verbatim match (0.30), label match (0.25), scale found (0.15), period match (0.15), method agreement (0.15).
 - Threshold is configurable (default 0.85) from `.env` and the UI slider.
 - Each value stores its signal breakdown so the UI can explain the score.
 
 **Accept:** changing the threshold from 0.85 to 0.6 changes the number of escalated values on the next run.
 
-### FR-4 Validation engine — *Sai*
+### FR-4 Validation engine — *Srujan*
 - **Accounting equation:** |Assets − (Liabilities + Equity)| / Assets ≤ 0.5%. Retry with equity including noncontrolling interest and record which one balanced.
 - **Segment check:** sum of segment revenues vs total revenue ≤ 0.5%, where a segment page exists; otherwise "N/A".
 - **Year-on-year:** flag a change above `YOY_THRESHOLD` (default 30%) as an anomaly.
@@ -105,7 +105,7 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 
 **Accept:** NVDA revenue is flagged by year-on-year; AAPL segments sum to total revenue.
 
-### FR-5 Automated decision — *Sai (logic), Zeeshan (graph)*
+### FR-5 Automated decision — *Srujan (logic), Zeeshan (graph)*
 - A value is auto-approved only if confidence ≥ threshold **and** it passed every check that applies to it **and** it is not missing.
 - Otherwise it is escalated with a reason string, e.g. *"A = L + E off by 2.1%; label match 0.71"*.
 - Auto-approvals are written to the audit log as `reviewer = "system"`.
@@ -126,20 +126,20 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 
 **Accept:** kill the backend while a run is paused, restart it, and the same item is still pending. Row counts in `extracted_values` and `audit_log` are unchanged except for new decisions.
 
-### FR-8 Reviewer dashboard — *Srujan*
+### FR-8 Reviewer dashboard — *Sai*
 - Tabs: Review queue · Filings · Validations · Accuracy report · Audit log.
 - Shows extracted metrics, flagged values, source evidence, validation results, confidence scores, and completed vs pending reviews.
 - Sidebar: counters + threshold slider.
 
 **Accept:** a judge can complete one approve, one correct and one reject from the UI without help.
 
-### FR-9 Ground-truth verification — *Sai*
+### FR-9 Ground-truth verification — *Srujan*
 - After reviews finish, compare each final value to XBRL Company Facts, matched by tag + accession + period end.
 - XBRL data is **never** used before this step.
 
 **Accept:** the report shows accuracy per metric and per company, and lists values with no ground truth separately.
 
-### FR-10 Accuracy report — *Sai (data), Srujan (UI)*
+### FR-10 Accuracy report — *Srujan (data), Sai (UI)*
 - Overall accuracy, per metric, per company.
 - Auto-approved count vs escalated count; completed vs pending reviews.
 - Escalation precision; auto-approval error rate; accuracy per confidence band.
@@ -157,10 +157,10 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 ### Bonus (only after the 3 AM checkpoint passes)
 | ID | Feature | Owner | Effort |
 |---|---|---|---|
-| B-1 | Adaptive thresholds: lower a metric's threshold by 0.05 if reviewers approve ≥ 80% of its escalations unchanged (min 5 reviews, floor 0.6) | Sai | 1 h |
+| B-1 | Adaptive thresholds: lower a metric's threshold by 0.05 if reviewers approve ≥ 80% of its escalations unchanged (min 5 reviews, floor 0.6) | Srujan | 1 h |
 | B-2 | AI explanation of each year-on-year anomaly (2 sentences, labelled AI-generated) | Mayur | 1 h |
 | B-3 | EDGAR fetch + XBRL lookup as MCP tools (FastMCP) | Zeeshan | 1–2 h |
-| B-4 | Multi-period variance chart (3 years per metric) | Srujan | 1 h |
+| B-4 | Multi-period variance chart (3 years per metric) | Sai | 1 h |
 
 ## 8. Non-functional requirements
 
