@@ -102,6 +102,12 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
     Returns dict mapping metric name to dict with:
     value, prior_value, row_label, source_snippet, column_header, score
     """
+    return _match_metrics(parse_rows(table_html), target_metrics)
+
+
+def parse_rows(table_html: str) -> list[dict]:
+    """Every labelled row of a statement table: {label, values (current year first), history, snippet, header}.
+    Shared by the metric matcher and the tie-out checks (extract/tieout.py)."""
     df = pd.read_html(io.StringIO(table_html))[0]
 
     # 1. Identify date / period columns from top header rows, normalized to 4-digit year
@@ -177,6 +183,10 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
                 "header": year_groups[0][0] if year_groups else "",
             })
 
+    return parsed_rows
+
+
+def _match_metrics(parsed_rows: list[dict], target_metrics: list[str]) -> dict[str, dict]:
     # 3. Match metrics using rapidfuzz against SYNONYMS with semantic filtering
     results: dict[str, dict] = {}
     for metric in target_metrics:

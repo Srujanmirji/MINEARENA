@@ -102,9 +102,9 @@ def resolve_filing(ticker: str) -> dict:
     """Which filing a run is about. Used by fetch_filing and by the API to build thread_id."""
     ticker = ticker.upper()
     if HAVE_EDGAR and not is_mock(ticker):
-        cik = get_cik(ticker)
-        meta = get_latest_10k(cik)
-        return {"ticker": ticker, "cik": cik, "accession": meta["accession"],
+        from agent.mcp_tools import call_tool
+        meta = call_tool("fetch_filing", "get_filing", {"ticker": ticker})
+        return {"ticker": ticker, "cik": meta["cik"], "accession": meta["accession"],
                 "fiscal_year": meta["fiscal_year"], "period_end": meta["period_end"],
                 "primary_document": meta["primary_document"], "company": meta.get("company")}
     r = _mock_rows(ticker)[0]

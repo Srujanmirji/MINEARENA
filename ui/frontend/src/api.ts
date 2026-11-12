@@ -58,6 +58,8 @@ export interface Health { ok: boolean; db: boolean; llm_provider: string; paused
 export interface StartRunResult { thread_id: string; status: RunStatus; created: boolean }
 export interface RunSummary {
   thread_id: string; ticker: string; status: RunStatus;
+  accession?: string | null; period_end?: string | null;
+  steps_done?: string[]; next?: string[];
   n_values: number; n_pending: number; n_auto: number; n_reviewed: number; error: string | null;
 }
 export interface RunDetail {
@@ -72,7 +74,7 @@ export interface ValidationRow {
   ticker: string; thread_id: string; metric: Metric;
   check: string; severity: 'hard' | 'soft'; status: 'passed' | 'failed' | 'na'; detail: string;
 }
-export interface Config { threshold: number; yoy_threshold: number; applies_to: string }
+export interface Config { threshold: number; yoy_threshold: number; equation_tolerance?: number; applies_to: string }
 export interface AuditRow {
   seq: number; ts: string; decision_id: string; thread_id: string; value_id: string; metric: Metric;
   original_value: number | null; corrected_value: number | null;
@@ -138,10 +140,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const post = <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(body) });
 const put = <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) });
 
+export interface McpTool { name: string; description: string; allowed_steps: string[] }
+export interface McpToolsInfo { server: string; protocol_version: string; tools: McpTool[]; step_permissions: Record<string, string[]> }
+export interface McpCallResult { ok: boolean; step: string; tool: string; result: Record<string, unknown> | null; error: string | null }
+
 export interface Company { ticker: string; name: string; cik: string }
 
 export const api = {
   health: () => request<Health>('/health'),
+  mcpTools: () => request<McpToolsInfo>('/mcp/tools'),
+  mcpCall: (step: string, name: string, arguments_: Record<string, unknown>) =>
+    post<McpCallResult>('/mcp/call', { step, name, arguments: arguments_ }),
 
   /** Search SEC's ticker list by ticker or name (any US company that files a 10-K). */
   searchCompanies: (q: string) => request<Company[]>('/companies' + query({ q, limit: 8 })),
@@ -168,7 +177,14 @@ export const api = {
 
   getConfig: () => request<Config>('/config'),
   /** Applies to new runs only. */
-  putConfig: (changes: Partial<Pick<Config, 'threshold' | 'yoy_threshold'>>) => put<Config>('/config', changes),
+  putConfig: (changes: Partial<Pick<Config, 'threshold' | 'yoy_threshold' | 'equation_tolerance'>>) => put<Config>('/config', changes),
+
+  /** Reviewer sign-off on a finished run (one hash-chained audit row; a second call returns the first). */
+  getSignoff: (threadId: string) => request<{ signoff: AuditRow | null }>(`/runs/${encodeURIComponent(threadId)}/signoff`),
+  signOff: (threadId: string, reviewer: string, note?: string) =>
+    post<{ signoff: AuditRow }>(`/runs/${encodeURIComponent(threadId)}/signoff`, { reviewer, note }),
+  /** Printable audit report (open in a new tab; the browser saves it as PDF). */
+  auditReportUrl: (threadId: string) => `${BASE}/runs/${encodeURIComponent(threadId)}/audit-report`,
 
   audit: (limit = 200) => request<AuditRow[]>('/audit' + query({ limit })),
   verifyAudit: () => request<ChainCheck>('/audit/verify'),

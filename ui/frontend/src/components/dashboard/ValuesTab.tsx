@@ -3,6 +3,7 @@ import { api, type ExtractedValue } from '../../api';
 import { CHECK_STYLE, METRIC_LABEL, STATUS_STYLE, TICKERS, tableNumber, unitText } from './format';
 import { Empty, ErrorBox, Loading } from './states';
 import { useApi } from './useApi';
+import { RunAuditPanel } from './RunAuditPanel';
 
 /** PS 3.7: extracted metrics, confidence scores and validation results, per company. */
 export function ValuesTab() {
@@ -12,7 +13,9 @@ export function ValuesTab() {
   if (values.isLoading && !values.data) return <Loading label="Loading extracted values…" />;
   if (values.error && !values.data) return <ErrorBox message={values.error} onRetry={values.reload} />;
   const all = values.data ?? [];
-  const tickers = TICKERS.filter((t) => all.some((v) => v.ticker === t));
+  // Demo companies first, then any company audited from the search box.
+  const seen = [...new Set(all.map((v) => v.ticker))];
+  const tickers = [...TICKERS.filter((t) => seen.includes(t)), ...seen.filter((t) => !(TICKERS as readonly string[]).includes(t)).sort()];
   const shown = ticker || tickers[0] || '';
   const rows = all.filter((v) => v.ticker === shown);
 
@@ -34,6 +37,10 @@ export function ValuesTab() {
         </div>
       )}
       {rows.length > 0 && <FilingSummary rows={rows} />}
+      {rows.length > 0 && rows[0].thread_id && (
+        <RunAuditPanel key={rows[0].thread_id} threadId={rows[0].thread_id}
+          isDecided={rows.every((v) => v.status !== 'escalated' && v.status !== 'extracted')} />
+      )}
       {rows.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
           <table className="w-full text-left text-sm min-w-[56rem]">
@@ -92,6 +99,7 @@ function ValueRow({ v }: { v: ExtractedValue }) {
       <td className="py-3 px-4 text-right tabular-nums">
         <div className="font-semibold">{tableNumber(v, final)}</div>
         <div className="text-xs text-gray-600">{unitText(v)}</div>
+        {v.prior_value !== null && <div className="text-xs text-gray-500">prior {tableNumber(v, v.prior_value)}</div>}
         {v.status === 'corrected' && <div className="text-xs text-blue-700">was {tableNumber(v, v.value)}</div>}
       </td>
       <td className="py-3 px-4 text-xs text-gray-700">{v.period_start ? `${v.period_start} → ` : 'as of '}{v.period_end}</td>

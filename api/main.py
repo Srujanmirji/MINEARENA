@@ -321,6 +321,7 @@ def decide(thread_id: str, body: DecisionIn) -> dict:
 class ConfigIn(BaseModel):
     threshold: float | None = None
     yoy_threshold: float | None = None
+    equation_tolerance: float | None = None
 
 
 HUMAN = ("approved", "corrected", "rejected")
@@ -336,8 +337,12 @@ def list_runs() -> list[dict]:
         values = db.get_values(thread_id=thread_id)
         statuses = [v["status"] for v in values]
         ticker = state.get("ticker") or (values[0]["ticker"] if values else thread_id.split("-")[0])
+        accession = state.get("accession") or (values[0]["accession"] if values else None)
+        period_end = state.get("period_end") or (values[0]["period_end"] if values else None)
         out.append({
             "thread_id": thread_id, "ticker": ticker, "status": status,
+            "accession": accession, "period_end": period_end,
+            "steps_done": _steps_done(thread_id), "next": list(snap.next),
             "n_values": len(values),
             "n_pending": len(state.get("pending", [])) if status == "paused" else 0,
             "n_auto": statuses.count("auto_approved"),
@@ -349,7 +354,13 @@ def list_runs() -> list[dict]:
 
 @app.get("/values")
 def list_values(ticker: str | None = None, thread_id: str | None = None) -> list[dict]:
-    return db.get_values(thread_id=thread_id, ticker=ticker)
+    rows = db.get_values(thread_id=thread_id, ticker=ticker)
+    hist = {
+        sv["id"]: sv.get("history") or {}
+        for tid in {r["thread_id"] for r in rows}
+        for sv in (_snapshot(tid).values or {}).get("values", [])
+    }
+    return [{**r, "history": hist.get(r["id"], {})} for r in rows]
 
 
 @app.get("/validations")
@@ -372,6 +383,7 @@ def list_validations(ticker: str | None = None) -> list[dict]:
 def _config_out() -> dict:
     return {"threshold": float(db.get_config("threshold", config.THRESHOLD)),
             "yoy_threshold": float(db.get_config("yoy_threshold", config.YOY_THRESHOLD)),
+            "equation_tolerance": float(db.get_config("equation_tolerance", config.EQUATION_TOLERANCE)),
             "applies_to": "new runs only"}
 
 
@@ -387,6 +399,8 @@ def update_config(body: ConfigIn) -> dict:
         raise HTTPException(status_code=422, detail="threshold must be in (0, 1]")
     if "yoy_threshold" in changes and not 0 < changes["yoy_threshold"] <= 10:
         raise HTTPException(status_code=422, detail="yoy_threshold must be in (0, 10]")
+    if "equation_tolerance" in changes and not 0 < changes["equation_tolerance"] <= 0.2:
+        raise HTTPException(status_code=422, detail="equation_tolerance must be in (0, 0.2]")
     for key, value in changes.items():
         db.set_config(key, value)
     return _config_out()
@@ -493,6 +507,96 @@ def explain_change(thread_id: str, value_id: str) -> dict:
     return {"explanation": text, "source": "Item 7, Management's Discussion and Analysis (MD&A)"}
 
 
+# ---------- sign-off + audit report (the end of an audit) ----------
+
+class SignoffIn(BaseModel):
+    reviewer: str
+    note: str | None = None
+
+
+def _signoff_row(thread_id: str) -> dict | None:
+    from audit.log import list_rows
+    return next((r for r in list_rows(limit=5000) if r["decision_id"] == f"{thread_id}:signoff"), None)
+
+
+@app.get("/runs/{thread_id}/signoff")
+def get_signoff(thread_id: str) -> dict:
+    return {"signoff": _signoff_row(thread_id)}
+
+
+@app.post("/runs/{thread_id}/signoff")
+def sign_off(thread_id: str, body: SignoffIn) -> dict:
+    """A reviewer signs off a finished run. One hash-chained audit row, keyed thread_id:signoff,
+    so a second sign-off is a no-op (returns the first). Only after every value is decided."""
+    from audit.log import append
+    if not body.reviewer.strip():
+        raise HTTPException(status_code=422, detail="reviewer is required")
+    snap = _snapshot(thread_id)
+    if not _exists(thread_id, snap):
+        raise HTTPException(status_code=404, detail="unknown thread_id")
+    status, _ = _status(thread_id, snap)
+    if status != "done":
+        raise HTTPException(status_code=409, detail=f"run is {status}: every value must be decided before sign-off")
+    row = append({"decision_id": f"{thread_id}:signoff", "thread_id": thread_id, "value_id": "signoff",
+                  "metric": "run_signoff", "decision": "approved", "reviewer": body.reviewer.strip(),
+                  "reason": (body.note or "").strip() or "Signed off: all values reviewed and graded"})
+    return {"signoff": row}
+
+
+@app.get("/runs/{thread_id}/audit-report")
+def audit_report(thread_id: str) -> Response:
+    """Printable audit report for one run (browser 'Save as PDF'): every value with its source row,
+    checks and decision, the run's audit-log rows, the hash-chain check and the sign-off."""
+    import html as h
+    from audit.log import list_rows, verify_chain
+    from verify.report import build_report
+
+    values = db.get_values(thread_id=thread_id)
+    if not values:
+        raise HTTPException(status_code=404, detail="unknown thread_id or no values")
+    filing = db.get_filing(values[0]["accession"]) or {}
+    rows = sorted((r for r in list_rows(limit=5000) if r["thread_id"] == thread_id), key=lambda r: r["seq"])
+    graded = {r["value_id"]: r for r in build_report(thread_id)["rows"]}
+    chain = verify_chain()
+    signoff = next((r for r in rows if r["value_id"] == "signoff"), None)
+    e = lambda x: h.escape("" if x is None else str(x))  # noqa: E731
+    num = lambda x: "—" if x is None else f"{x:,.2f}".rstrip("0").rstrip(".")  # noqa: E731
+
+    value_rows = "".join(
+        f"<tr><td>{e(v['metric'])}</td><td class=n>{num(v.get('final_value') if v.get('final_value') is not None else v['value'])}</td>"
+        f"<td>{e(v['status'].replace('_', ' '))}</td><td class=n>{v['confidence']:.2f}</td><td>{e(v.get('row_label'))}</td>"
+        f"<td>{e('; '.join(c['check'] + ': ' + c['detail'] for c in v['validation'] if c['status'] == 'failed') or 'all passed')}</td>"
+        f"<td>{e({True: 'correct', False: 'WRONG', None: 'no ground truth'}[(graded.get(v['id']) or {}).get('match')])}</td></tr>"
+        for v in values)
+    log_rows = "".join(
+        f"<tr><td class=n>{r['seq']}</td><td>{e(r['ts'])}</td><td>{e(r['metric'])}</td><td>{e(r['decision'])}</td>"
+        f"<td class=n>{num(r['original_value'])}</td><td class=n>{num(r['corrected_value'])}</td>"
+        f"<td>{e(r['reviewer'])}</td><td>{e(r['reason'])}</td><td class=mono>{e(r['hash'][:16])}…</td></tr>"
+        for r in rows)
+    sign = (f"<p class=ok>Signed off by <b>{e(signoff['reviewer'])}</b> on {e(signoff['ts'])}: {e(signoff['reason'])}</p>"
+            if signoff else "<p class=warn>Not signed off yet.</p>")
+    page = f"""<!doctype html><html><head><meta charset=utf-8><title>Audit report {e(thread_id)}</title><style>
+body{{font:14px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#111827;max-width:1100px;margin:32px auto;padding:0 16px}}
+h1{{font-size:26px;margin:0}} h2{{font-size:18px;margin:28px 0 8px}} table{{border-collapse:collapse;width:100%}}
+td,th{{border-bottom:1px solid #e5e7eb;padding:6px 8px;text-align:left;vertical-align:top}} th{{background:#f9fafb}}
+.n{{text-align:right;font-variant-numeric:tabular-nums}} .mono{{font-family:ui-monospace,monospace}}
+.ok{{background:#ecfdf5;border:1px solid #a7f3d0;padding:10px;border-radius:8px}}
+.warn{{background:#fffbeb;border:1px solid #fde68a;padding:10px;border-radius:8px}}
+button{{font:inherit;padding:8px 14px;border-radius:999px;border:1px solid #111827;background:#111827;color:#fff;cursor:pointer}}
+@media print{{button{{display:none}}}}</style></head><body>
+<button onclick="print()">Print / Save as PDF</button>
+<h1>Audit report · {e(filing.get('company') or values[0]['ticker'])} ({e(values[0]['ticker'])})</h1>
+<p>10-K {e(values[0]['accession'])} · fiscal year ending {e(values[0]['period_end'])} · run {e(thread_id)} ·
+source: SEC EDGAR, Item 8 audited financial statements</p>
+{sign}
+<h2>Values</h2><table><tr><th>Metric</th><th class=n>Final value</th><th>Decision</th><th class=n>Confidence</th>
+<th>Source row</th><th>Failed checks</th><th>vs SEC XBRL</th></tr>{value_rows}</table>
+<h2>Audit trail</h2><p>{'Hash chain intact' if chain['ok'] else 'HASH CHAIN BROKEN at row ' + str(chain['broken_at_seq'])} ({chain['rows']} rows in the whole log). Rows are append-only: the database refuses UPDATE and DELETE.</p>
+<table><tr><th class=n>#</th><th>Time</th><th>Metric</th><th>Decision</th><th class=n>Original</th><th class=n>Corrected</th>
+<th>Reviewer</th><th>Reason</th><th>Hash</th></tr>{log_rows}</table></body></html>"""
+    return Response(content=page, media_type="text/html")
+
+
 # ---------- accuracy report (Srujan's verify.report) ----------
 
 REPORT_COLUMNS = ["value_id", "thread_id", "ticker", "metric", "status", "confidence", "escalation_reason",
@@ -526,3 +630,34 @@ def report_csv(thread_id: str | None = None) -> Response:
     name = f"auditloop-report-{thread_id or 'all'}.csv"
     return Response(content=buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+# ---------- Bonus B-3: Step-scoped MCP tools ----------
+
+class McpCallIn(BaseModel):
+    step: str
+    name: str
+    arguments: dict = {}
+
+
+@app.get("/mcp/tools")
+def mcp_tools(step: str | None = None) -> dict:
+    from agent.mcp_tools import STEP_PERMISSIONS, list_tools
+    return {
+        "server": "auditloop-sec-mcp",
+        "protocol_version": "2024-11-05",
+        "tools": list_tools(step),
+        "step_permissions": {k: sorted(v) for k, v in STEP_PERMISSIONS.items()},
+    }
+
+
+@app.post("/mcp/call")
+def mcp_call(body: McpCallIn) -> dict:
+    from agent.mcp_tools import call_tool
+    try:
+        res = call_tool(body.step, body.name, body.arguments)
+        return {"ok": True, "step": body.step, "tool": body.name, "result": res, "error": None}
+    except PermissionError as e:
+        return {"ok": False, "step": body.step, "tool": body.name, "result": None, "error": str(e)}
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))

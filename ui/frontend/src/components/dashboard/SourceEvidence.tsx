@@ -23,8 +23,13 @@ export function SourceEvidence({ threadId, value }: { threadId: string; value: E
   const frame = useRef<HTMLIFrameElement>(null);
 
   function scrollToRow() {
-    // allow-same-origin (no allow-scripts) lets the parent read the DOM; the frame itself still can't run JS.
-    frame.current?.contentDocument?.querySelector('tr.hl')?.scrollIntoView({ block: 'center' });
+    // Scroll inside the iframe window so the outer page does not jump.
+    const doc = frame.current?.contentDocument;
+    const win = frame.current?.contentWindow;
+    const row = doc?.querySelector('tr.hl') as HTMLElement | null;
+    if (row && win && frame.current) {
+      win.scrollTo({ top: Math.max(0, row.offsetTop - frame.current.clientHeight / 2 + row.offsetHeight / 2), behavior: 'smooth' });
+    }
   }
 
   return (
@@ -38,12 +43,20 @@ export function SourceEvidence({ threadId, value }: { threadId: string; value: E
               : value.source_page}
           </p>
         </div>
-        {src.data?.source_url && (
-          <a href={src.data.source_url} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 min-h-11 px-3 text-xs font-semibold text-blue-700 hover:underline shrink-0">
-            Open filing on SEC <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {src.data?.row_found && (
+            <button type="button" onClick={scrollToRow}
+              className="inline-flex items-center min-h-9 px-2.5 rounded-lg border border-gray-200 bg-gray-50 text-xs font-semibold text-gray-700 hover:bg-gray-100">
+              Jump to row ↓
+            </button>
+          )}
+          {src.data?.source_url && (
+            <a href={src.data.source_url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 min-h-11 px-3 text-xs font-semibold text-blue-700 hover:underline shrink-0">
+              Open filing on SEC <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
       </div>
 
       <div className="mt-4">

@@ -58,6 +58,18 @@ def get_cik(ticker: str) -> str:
     raise ValueError(f"Ticker {ticker} not found in SEC company tickers")
 
 
+def find_amendment(cik: str, period_end: str) -> dict | None:
+    """A 10-K/A filed for the same fiscal period, if any (the original numbers may have been corrected).
+    Uses the cached Submissions JSON already fetched by get_latest_10k (no extra SEC call when cached)."""
+    url = f"https://data.sec.gov/submissions/CIK{str(cik).zfill(10)}.json"
+    recent = json.loads(cached_get(url).decode("utf-8")).get("filings", {}).get("recent", {})
+    for i, form in enumerate(recent.get("form", [])):
+        if form == "10-K/A" and recent["reportDate"][i] == period_end:
+            return {"accession": recent["accessionNumber"][i], "filing_date": recent["filingDate"][i],
+                    "primary_document": recent["primaryDocument"][i]}
+    return None
+
+
 def get_latest_10k(cik: str) -> dict:
     """Return metadata for the most recent 10-K filing.
 

@@ -1,18 +1,29 @@
+import { useState } from 'react';
 import { Download } from 'lucide-react';
-import { api, pct, type Accuracy } from '../../api';
-import { METRIC_LABEL } from './format';
+import { api, pct, type Accuracy, type ReportRow } from '../../api';
+import { METRIC_LABEL, STATUS_STYLE } from './format';
 import { Empty, ErrorBox, Loading, StatCard } from './states';
 import { useApi } from './useApi';
+
+function fmtBase(metric: string, val: number | null): string {
+  if (val === null || val === undefined) return '—';
+  if (metric === 'eps_diluted') return `$${val.toFixed(2)}`;
+  if (Math.abs(val) >= 1_000_000) return `$${(val / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 0 })}M`;
+  return `$${val.toLocaleString('en-US')}`;
+}
 
 /** GET /report: graded against SEC XBRL after review. Every number is recomputed from app.db. */
 export function AccuracyTab() {
   const rep = useApi(() => api.report());
+  const [tickerFilter, setTickerFilter] = useState<string>('');
   if (rep.isLoading && !rep.data) return <Loading label="Building the accuracy report…" />;
   if (rep.error && !rep.data) return <ErrorBox message={rep.error} onRetry={rep.reload} />;
   const r = rep.data;
   if (!r) return null;
   const o = r.overall;
   const wrongAuto = r.rows.filter((x) => x.status === 'auto_approved' && x.match === false).length;
+  const tickers = Array.from(new Set(r.rows.map((x) => x.ticker)));
+  const shownRows = tickerFilter ? r.rows.filter((x) => x.ticker === tickerFilter) : r.rows;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -39,6 +50,16 @@ export function AccuracyTab() {
             <StatCard label="Wrong auto-approvals" value={String(wrongAuto)} sub={`of ${r.decisions.auto_approved} auto-approved (${pct(r.auto_approval_error_rate)})`} tone={wrongAuto ? 'text-red-700' : 'text-emerald-700'} />
           </div>
 
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 flex flex-wrap items-center justify-between gap-4 text-sm">
+            <div className="font-semibold text-gray-900">Automated vs. Human Routing Summary (PS 3.8)</div>
+            <div className="flex flex-wrap gap-6 tabular-nums">
+              <span><strong className="text-emerald-700">{r.decisions.auto_approved}</strong> auto-approved</span>
+              <span><strong className="text-amber-800">{r.decisions.escalated}</strong> escalated to human</span>
+              <span><strong className="text-gray-900">{r.decisions.reviewed}</strong> reviewed</span>
+              <span><strong className="text-gray-600">{r.decisions.pending}</strong> pending</span>
+            </div>
+          </div>
+
           <div className="grid lg:grid-cols-2 gap-6">
             <Bars title="By metric" data={Object.entries(r.by_metric).map(([k, a]) => [METRIC_LABEL[k as keyof typeof METRIC_LABEL] ?? k, a])} />
             <Bars title="By company" data={Object.entries(r.by_company)} />
@@ -57,6 +78,64 @@ export function AccuracyTab() {
                 ))}
               </tbody>
             </table>
+          </section>
+
+          <section aria-labelledby="xbrl-heading" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="p-5 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 id="xbrl-heading" className="text-base font-bold text-gray-900">SEC XBRL Company Facts comparison</h2>
+                <p className="text-xs text-gray-600 mt-0.5">Every extracted value compared against its official US-GAAP XBRL tag for the same 10-K accession and period end.</p>
+              </div>
+              {tickers.length > 1 && (
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => setTickerFilter('')}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border ${tickerFilter === '' ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>
+                    All ({r.rows.length})
+                  </button>
+                  {tickers.map((t) => (
+                    <button key={t} type="button" onClick={() => setTickerFilter(t)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${tickerFilter === t ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[56rem]">
+                <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+                  <tr>
+                    <th scope="col" className="py-3 px-4">Company · Metric</th>
+                    <th scope="col" className="py-3 px-4">Decision</th>
+                    <th scope="col" className="py-3 px-4 text-right">Confidence</th>
+                    <th scope="col" className="py-3 px-4 text-right">Our final value</th>
+                    <th scope="col" className="py-3 px-4">SEC XBRL US-GAAP tag</th>
+                    <th scope="col" className="py-3 px-4 text-right">XBRL ground truth</th>
+                    <th scope="col" className="py-3 px-4">Result</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 tabular-nums">
+                  {shownRows.map((row: ReportRow) => {
+                    const st = STATUS_STYLE[row.status];
+                    return (
+                      <tr key={row.value_id}>
+                        <td className="py-2.5 px-4 font-semibold text-gray-900">{row.ticker} · {METRIC_LABEL[row.metric] ?? row.metric}</td>
+                        <td className="py-2.5 px-4"><span className={`px-2 py-0.5 rounded-full font-semibold ${st.cls}`}>{st.label}</span></td>
+                        <td className="py-2.5 px-4 text-right font-medium">{row.confidence.toFixed(2)}</td>
+                        <td className="py-2.5 px-4 text-right font-semibold text-gray-900">{fmtBase(row.metric, row.our_value)}</td>
+                        <td className="py-2.5 px-4 font-mono text-gray-600">{row.xbrl_tag ? `us-gaap:${row.xbrl_tag}` : '— (not tagged in XBRL)'}</td>
+                        <td className="py-2.5 px-4 text-right font-semibold text-gray-900">{fmtBase(row.metric, row.xbrl_value)}</td>
+                        <td className="py-2.5 px-4">
+                          {row.match === true && <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">Match</span>}
+                          {row.match === false && <span className="px-2 py-0.5 rounded bg-red-100 text-red-800 font-semibold">Mismatch</span>}
+                          {row.match === null && <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-semibold">No GT</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </section>
         </>
       )}

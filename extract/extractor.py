@@ -312,8 +312,36 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
     # Filing-level: the auditor's opinion (Item 8). Carried on every value's validation list so the
     # router sends the whole filing to a human on a red flag (no core/models.py change needed).
     opinion = _auditor_opinion(meta)
-    models = [v.model_copy(update={"validation": [opinion]}) for v in models]
+    # Tie-outs: the same number must agree across statements (net income, cash).
+    from extract.tieout import tie_out
+    ties = tie_out(tables, extracted_by_metric)
+    amended = _amendment_check(meta)
+    models = [v.model_copy(update={"validation": [opinion, amended, *ties.get(v.metric, [])]}) for v in models]
     return models, segments
+
+
+def _amendment_check(meta: dict) -> dict:
+    """Hard: a later 10-K/A for the same year means the original 10-K's numbers may have been corrected."""
+    check = "Amended filing"
+    try:
+        from edgar.client import find_amendment
+        amend = find_amendment(meta["cik"], meta["period_end"])
+    except Exception as e:
+        return {"check": check, "severity": "hard", "status": "na", "detail": f"could not check for a 10-K/A: {e}"}
+    if not amend:
+        return {"check": check, "severity": "hard", "status": "passed", "detail": "no 10-K/A filed for this year"}
+    # Most 10-K/As only add Part III (pay, directors). Only one that restates the financial statements matters.
+    try:
+        from extract.locate import locate_statements
+        doc = strip_ixbrl(get_primary_doc(meta["cik"], amend["accession"], amend["primary_document"]))
+        restates = "balance_sheet" in locate_statements(doc)
+    except Exception as e:
+        return {"check": check, "severity": "hard", "status": "na", "detail": f"10-K/A {amend['accession']} found but unreadable: {e}"}
+    if restates:
+        return {"check": check, "severity": "hard", "status": "failed",
+                "detail": f"10-K/A {amend['accession']} (filed {amend['filing_date']}) contains financial statements: numbers may be restated"}
+    return {"check": check, "severity": "hard", "status": "passed",
+            "detail": f"10-K/A {amend['accession']} (filed {amend['filing_date']}) amends other parts, not the financial statements"}
 
 
 def _auditor_opinion(meta: dict) -> dict:

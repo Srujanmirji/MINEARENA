@@ -24,6 +24,10 @@ RED_FLAGS = [
      "material weakness: internal control over financial reporting not effective"),
     (re.compile(r"because of the effect of the material weakness", re.I),
      "material weakness: internal control over financial reporting not effective"),
+    (re.compile(r"substantial doubt about (?:its|the company['’]?s) ability to continue as a going concern", re.I),
+     "going concern: substantial doubt about ability to continue"),
+    (re.compile(r"have been restated to correct", re.I),
+     "restatement: previously issued financial statements restated"),
 ]
 
 

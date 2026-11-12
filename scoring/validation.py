@@ -16,7 +16,9 @@ UNITS = "Units"
 
 BALANCE = ("total_assets", "total_liabilities", "equity")
 MUST_BE_POSITIVE = ("revenue", "total_assets", "total_liabilities")
-CARRIED_CHECKS = ("Auditor's opinion",)  # set by extract/opinion.py; a failed one escalates via the router
+# Filing-level checks made at extraction time, carried through untouched; a failed one escalates.
+CARRIED_CHECKS = ("Auditor's opinion", "Net income tie-out", "Cash tie-out", "Amended filing")
+MARGIN, EPS_SIGN = "Margin sanity", "EPS sign"
 SCALE_LOW, SCALE_HIGH = 500, 2000  # ratio band that smells like thousands vs millions
 
 
@@ -36,7 +38,8 @@ def check_equation(by_metric: dict[str, ExtractedValue], tolerance: float) -> di
     gap = (a - (l + e)) / a
     if abs(gap) <= tolerance:
         return _result(EQUATION, "hard", "passed", f"A = L + E within {abs(gap):.2%}")
-    detail = f"A=L+E off by {abs(gap):.1%}"
+    scale = by_metric["total_assets"].scale or 1
+    detail = f"A=L+E off by {abs(gap):.1%} (gap {abs(a - (l + e)) / scale:,.0f})"
     if "noncontrolling" not in by_metric["equity"].row_label.lower():
         detail += " (equity may exclude NCI)"
     return _result(EQUATION, "hard", "failed", detail)
@@ -59,8 +62,41 @@ def check_yoy(v: ExtractedValue, threshold: float) -> dict:
         return _result(YOY, "soft", "na", "no prior-year value")
     change = (v.value - v.prior_value) / abs(v.prior_value)
     if abs(change) > threshold:
-        return _result(YOY, "soft", "failed", f"{change:+.0%} vs prior")
+        return _result(YOY, "soft", "failed", f"{change:+.0%} vs prior{_trend(v)}")
     return _result(YOY, "soft", "passed", f"{change:+.0%} vs prior")
+
+
+def _trend(v: ExtractedValue) -> str:
+    """Context for a big jump from the 3-year history: one-off break, or part of a trend?"""
+    years = sorted(v.history or {})
+    if len(years) < 3:
+        return ""
+    a, b = v.history[years[-3]], v.history[years[-2]]
+    if not a:
+        return ""
+    earlier = (b - a) / abs(a)
+    kind = "continues a trend" if abs(earlier) > 0.2 and (earlier > 0) == (v.value > v.prior_value) else "breaks the trend"
+    return f"; year before was {earlier:+.0%}, so this {kind}"
+
+
+def check_margin(by_metric: dict[str, ExtractedValue]) -> dict:
+    """Hard: operating income can't exceed revenue (an operating margin over 100% means a wrong row)."""
+    rev, op = _base(by_metric.get("revenue")), _base(by_metric.get("operating_income"))
+    if rev is None or op is None or rev <= 0:
+        return _result(MARGIN, "hard", "na", "revenue or operating income missing")
+    if abs(op) > rev:
+        return _result(MARGIN, "hard", "failed", f"operating margin {op / rev:.0%}: operating income larger than revenue")
+    return _result(MARGIN, "hard", "passed", f"operating margin {op / rev:.0%}")
+
+
+def check_eps_sign(by_metric: dict[str, ExtractedValue]) -> dict:
+    """Hard: diluted EPS and net income must have the same sign (a profit can't give a loss per share)."""
+    ni, eps = by_metric.get("net_income"), by_metric.get("eps_diluted")
+    if ni is None or eps is None or ni.value is None or eps.value is None or not ni.value or not eps.value:
+        return _result(EPS_SIGN, "hard", "na", "net income or EPS missing")
+    if (ni.value > 0) == (eps.value > 0):
+        return _result(EPS_SIGN, "hard", "passed", "EPS and net income agree in sign")
+    return _result(EPS_SIGN, "hard", "failed", f"net income {ni.value:,.0f} but EPS {eps.value:.2f}")
 
 
 def check_scale(v: ExtractedValue) -> dict:
@@ -97,6 +133,7 @@ def _validate_one_filing(values: list[ExtractedValue], segments: list[dict], cfg
     by_metric = {v.metric: v for v in values}
     equation = check_equation(by_metric, tolerance)
     segment = check_segments(by_metric.get("revenue"), segments, tolerance)
+    margin, eps_sign = check_margin(by_metric), check_eps_sign(by_metric)
 
     out = []
     for v in values:
@@ -106,6 +143,10 @@ def _validate_one_filing(values: list[ExtractedValue], segments: list[dict], cfg
             results.append(equation)
         if v.metric == "revenue":
             results.append(segment)
+        if v.metric == "operating_income":
+            results.append(margin)
+        if v.metric in ("net_income", "eps_diluted"):
+            results.append(eps_sign)
         results += [check_yoy(v, yoy_threshold), check_scale(v), check_units(v)]
         if v.metric in MUST_BE_POSITIVE:
             results.append(check_sign(v))
