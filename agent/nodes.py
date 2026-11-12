@@ -194,14 +194,21 @@ def route(state: AuditState) -> dict:
     else:
         values, pending = [], []
         for v in state["values"]:
-            hard_fail = any(c.get("status") == "failed" and c.get("severity") == "hard"
-                            for c in v.get("validation", []))
-            if v.get("value") is not None and v["confidence"] >= threshold and not hard_fail:
+            # ARCHITECTURE §7: ANY failed check pauses, whatever the threshold.
+            # Severity only changes the wording: hard = "possible error", soft = "anomaly".
+            failed = [c for c in v.get("validation", []) if c.get("status") == "failed"]
+            if v.get("value") is not None and v["confidence"] >= threshold and not failed:
                 values.append({**v, "status": "auto_approved", "escalation_reason": None})
             else:
-                reason = ("no value extracted" if v.get("value") is None
-                          else "hard validation failure" if hard_fail
-                          else f"confidence {v['confidence']:.2f} < {threshold:.2f}")
+                if v.get("value") is None:
+                    reason = "no value extracted"
+                elif failed:
+                    reason = "; ".join(
+                        f"{'possible error' if c.get('severity') == 'hard' else 'anomaly'}: "
+                        f"{c.get('check', 'check')} {c.get('detail', '')}".strip()
+                        for c in failed)
+                else:
+                    reason = f"confidence {v['confidence']:.2f} < {threshold:.2f}"
                 values.append({**v, "status": "escalated", "escalation_reason": reason})
                 pending.append(v["id"])
     print(f"[nodes] route -> {len(values) - len(pending)} clean, {len(pending)} pending")
