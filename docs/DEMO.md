@@ -19,9 +19,9 @@ The PS says: **"All mandatory requirements must be demonstrated during evaluatio
 | 3.4 **Segment validation** | AAPL segment revenues sum to total | 1:50 |
 | 3.4 **Year-on-year** | NVDA revenue flagged as an anomaly | 1:50 |
 | 3.4 Passed vs failed clearly shown | Validations tab: ✅ / ❌ / N/A | 1:50 |
-| 3.5 Auto-pause on low confidence **or** failed check | WMT run pauses live | 2:15 |
+| 3.5 Auto-pause on low confidence **or** failed check | TSLA run pauses live on A = L + E | 2:15 |
 | 3.5 Value, score, snippet, reason shown | Review card | 2:15 |
-| 3.5 **Approve**, **Correct**, **Reject** | All three clicked, one each | 2:30–3:20 |
+| 3.5 **Approve**, **Correct**, **Reject** | All three clicked, one each (Approve on TSLA, Correct + Reject on WMT) | 2:30–3:20 |
 | 3.6 Checkpoint + resume, no duplicates | Kill + restart backend; same item waiting; row count unchanged | 2:45 |
 | 3.7 Completed and pending reviews tracked | Sidebar counters change after each decision | 3:20 |
 | 3.8 XBRL comparison + accuracy report | Accuracy report tab | 4:05 |
@@ -35,8 +35,8 @@ The PS says: **"All mandatory requirements must be demonstrated during evaluatio
 - [ ] Backend running in a visible terminal (the kill-and-restart is part of the show)
 - [ ] Demo state prepared, **not** a fresh `app.db`:
   - AAPL, MSFT, NVDA fully processed (AAPL shows segments ✅, NVDA shows YoY ❌)
-  - TSLA run paused with **at least 2 items** waiting (for Approve and Reject)
-  - WMT not run yet (runs live)
+  - WMT run paused with **at least 2 items** waiting (for Correct and Reject). Pick them in rehearsal from the real queue: one with a genuinely wrong value to Correct, one unusable value to Reject. Derived total liabilities (WMT has no XBRL `Liabilities`) will be among them
+  - TSLA not run yet (runs live)
 - [ ] SQLite shell open in a second terminal: `sqlite3 data/app.db`
 - [ ] Architecture slide open in a tab
 - [ ] Laptop on charger; notifications off; font size bumped in terminal and browser
@@ -53,7 +53,7 @@ The PS ends with: *"Build a reliable autonomous financial auditing agent that ca
 | autonomous | Auto-approved vs escalated counts (4:05) + the "autonomy" answer in Q&A |
 | extract | AAPL's 9 values with source rows (1:00) |
 | validate | Validations tab (1:50) |
-| identify suspicious values | WMT pauses (2:15); escalation precision (4:05) |
+| identify suspicious values | TSLA pauses on A = L + E (2:15); escalation precision (4:05) |
 | request human intervention when necessary | Review card + Approve / Correct / Reject (2:15–3:20) |
 | resume its workflow | Kill and restart (2:45) |
 | verifiable audit trail | Verify chain + refused UPDATE (3:35) |
@@ -69,10 +69,10 @@ The closing line repeats this sentence back to them.
 | 1:00 | Filings tab: 5 companies; open AAPL | "Five real companies, latest 10-K each. Here are Apple's 9 metrics, each with its period, unit and the exact source row from the filing." |
 | 1:30 | Click one value; point at the threshold slider | "Confidence 0.97: both readers agree, the label matches, period and unit are right, checks passed. The auto-approve threshold is configurable, here." |
 | 1:50 | Validations tab | "Accounting equation: Apple balances. Segment check: Apple's five regions add up to total revenue. Year-on-year: NVIDIA's revenue jump is flagged as an anomaly. Passed, failed, N/A, all visible." |
-| 2:15 | Filings → **Run WMT** → Review queue | "Walmart. Its equity line includes noncontrolling interest, so the equation check fails. The workflow pauses by itself. The reviewer sees the value, score, source row and reason." |
-| 2:30 | **Correct** with a number + reason | "The reviewer corrects it, with a reason." |
+| 2:15 | Filings → **Run TSLA** → Review queue | "Tesla. Assets don't equal liabilities plus equity: off by half a percent. The workflow pauses by itself. The reviewer sees the value, score, source row and reason: equity may exclude noncontrolling interest." |
+| 2:30 | **Approve** with note "gap is noncontrolling interest; value matches the filing" | "The number was read correctly; the gap is Tesla's noncontrolling interest. The reviewer approves it, with a reason." (Do **not** Correct equity to include NCI: XBRL `StockholdersEquity` excludes it, so that would turn a right value wrong.) |
 | 2:45 | Zeeshan: Ctrl+C backend, restart. Sai refreshes | "We just crashed the server mid-review. Restarted. The workflow resumed from its saved checkpoint, nothing re-ran, and the row count is unchanged." (Show the count in SQLite.) |
-| 3:05 | TSLA item → **Approve**; next item → **Reject** with reason | "Approve when it's right, reject when the value is unusable. Every decision is recorded before the workflow continues." |
+| 3:05 | WMT item → **Correct** with a number + reason; next item → **Reject** with reason | "Correct when the value is wrong, reject when it's unusable. Every decision is recorded before the workflow continues." |
 | 3:20 | Point at sidebar counters | "Completed and pending reviews, tracked live." |
 | 3:35 | Audit log tab → **Verify chain**; SQLite `UPDATE audit_log SET decision='approved' WHERE seq=1;` (row `seq=1` must exist: on an empty log the UPDATE matches 0 rows and "succeeds" silently) | "Every decision: original value, corrected value, decision, timestamp. Hash-chained: chain intact. Try to edit history… the database refuses." |
 | 4:05 | Accuracy report tab | "Graded against the SEC's XBRL data: accuracy X%. N values auto-approved, M escalated. Escalation precision P%: most of what we escalated really was a problem." |
@@ -91,7 +91,7 @@ Fill X, N, M, P with the real numbers after the 3 AM report. Never use placehold
 | "What if the server crashes mid-review?" | Show it again: kill and restart. "State is in a SQLite checkpointer after every node." |
 | "How do you know the audit log wasn't edited?" | "Triggers reject UPDATE and DELETE in the database, and each row's hash includes the previous row's hash. Verify recomputes the chain and shows the first broken row." |
 | "Is escalation precision good?" | Show the number + the calibration table: "Higher confidence bands are more accurate, so the score means something." |
-| "Why these 5 companies?" | "Chosen to stress the system: a clean baseline (Apple), segments (Microsoft), a genuine growth anomaly (NVIDIA), and two companies with noncontrolling interest that make the equity line ambiguous (Walmart, Tesla)." |
+| "Why these 5 companies?" | "Chosen to stress the system: a clean baseline (Apple), segments (Microsoft), a genuine growth anomaly (NVIDIA), Tesla, whose noncontrolling interest makes A = L + E miss by 0.5%, and Walmart, which has no total-liabilities line, so we derive it and a human checks it." |
 | "Isn't this just a fixed pipeline? Where's the autonomy?" | "Nobody tells it which values to trust. For every number it decides by itself: which extractor to believe, whether it's confident, whether it makes accounting sense, and whether a human is needed. Humans only see the ~X% it isn't sure about." (X from the 3 AM report. If the MCP bonus is done, add: "…and it calls SEC tools itself.") |
 | "How do you know it's reliable?" | "We ran all 5 companies end to end twice from a clean database: zero crashes, identical results, zero wrong values auto-approved. And you just saw it survive a server crash." |
 | "What would you do with more time?" | "Adaptive thresholds from reviewer feedback, 10-Q support, MCP tools so other agents can call the auditor, and multi-period variance explanations." |

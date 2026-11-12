@@ -259,7 +259,7 @@ Why these designs:
 | Wi-Fi fails during judging | `cache/` committed before judging |
 | LLM rate limit or outage | Groq fallback via `LLM_PROVIDER`; LLM responses cached; parser-only mode as last resort |
 | Primary-document locator unreliable | 8 PM decision: fall back to R pages with tag links stripped, disclosed to judges |
-| Too few real escalations | NVDA (YoY), WMT + TSLA (noncontrolling interest) chosen for genuine ambiguity; never fake data |
+| Too few real escalations | NVDA (YoY), TSLA (noncontrolling interest: A = L + E misses by 0.5%), WMT (no total-liabilities line, so liabilities are derived and capped at 0.75) chosen for genuine ambiguity; never fake data |
 | Integration breaks at night | Folder ownership, shared schema, 5 integration checkpoints |
 
 ## 14. Milestones (12–13 Nov)
