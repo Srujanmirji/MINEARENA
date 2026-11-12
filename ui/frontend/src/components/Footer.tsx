@@ -27,10 +27,6 @@ export const Footer: React.FC<FooterProps> = ({
       <div className="border-b border-white/10 px-6 py-14">
         <div className="max-w-[88rem] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-3">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Autonomous Financial Verification
-            </div>
             <h3 className="text-3xl md:text-4xl font-medium tracking-tight text-white leading-tight">
               Every Filing Verified. Zero Hallucinations.
             </h3>
@@ -214,3 +210,4 @@ export const Footer: React.FC<FooterProps> = ({
     </footer>
   );
 };
+
