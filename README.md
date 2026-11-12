@@ -46,6 +46,11 @@ cd ui/frontend && npm install && npm run dev            # http://localhost:5173 
 # backup UI only (if the React app is unavailable): streamlit run ui/app.py
 ```
 
+Tests (23 unit tests: scoring, checks, extraction rules, audit log; no network, under a second):
+```bash
+python -m unittest discover -s tests -v
+```
+
 One-command proof run (2 clean runs of all 5 companies, prints the slide numbers):
 ```bash
 python -m verify.run_all
