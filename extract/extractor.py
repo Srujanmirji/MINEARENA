@@ -105,6 +105,23 @@ def _extract_segments_from_table(table_html: str) -> list[dict]:
     return segments
 
 
+NOT_A_SEGMENT = ("expense", "profit", "income", "interest", "margin", "cost", "tax", "in millions",
+                 "amounts", "membership", "operating", "selling", "depreciation")
+
+
+def _plausible_segments(segments: list[dict], revenue: float | None) -> list[dict]:
+    """Keep a segment set only if it looks like revenue by segment; else [] (validation shows N/A).
+    A wrong table here would raise a false hard failure on a correct revenue figure."""
+    ok = (
+        revenue is not None and len(segments) >= 2
+        and not any(w in s["segment"].lower() for s in segments for w in NOT_A_SEGMENT)
+        and all(0 < s["value"] < revenue for s in segments)
+    )
+    if segments and not ok:
+        print(f"[extractor] segment table rejected (not revenue by segment): {[s['segment'][:25] for s in segments]}")
+    return segments if ok else []
+
+
 def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedValue], list[dict]]:
     """Extract all 9 core metrics and reportable segments from located statement tables.
 
@@ -199,10 +216,16 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
                 "is_derived": False,
             }
 
-    # 3. Check for missing total_liabilities -> derive Assets - Equity
+    # 3. Check for missing total_liabilities -> derive Total L&E (= Total assets) - Total equity.
+    # Total equity INCLUDING noncontrolling interest, not the parent's equity that the `equity` metric
+    # reports; otherwise NCI silently lands inside "liabilities" (e.g. Walmart).
     if extracted_by_metric.get("total_liabilities", {}).get("value") is None:
         assets_item = extracted_by_metric.get("total_assets")
         equity_item = extracted_by_metric.get("equity")
+        bs_html = tables.get("balance_sheet", {}).get("html", "")
+        total_eq = parse_statement_table(bs_html, ["total_equity"]).get("total_equity") if bs_html else None
+        if total_eq and total_eq.get("value") is not None:
+            equity_item = total_eq
         if assets_item and equity_item and assets_item.get("value") is not None and equity_item.get("value") is not None:
             derived_val = round(assets_item["value"] - equity_item["value"], 2)
             derived_prior = None
@@ -221,7 +244,7 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
                 "alt_value": None,
                 "extractor": "parser",
                 "row_label": "Total liabilities (derived)",
-                "source_snippet": f"Derived: {assets_item['value']} (Total assets) - {equity_item['value']} (Total equity) = {derived_val}",
+                "source_snippet": f"Derived: {assets_item['value']} (Total assets) - {equity_item['value']} ({equity_item.get('row_label') or 'Total equity'}) = {derived_val}",
                 "prior_value": derived_prior,
                 "history": derived_hist,
                 "column_header": assets_item.get("column_header", ""),
@@ -229,6 +252,8 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
                 "table_scale": bs_info.get("scale", 1),
                 "is_derived": True,
             }
+
+    segments = _plausible_segments(segments, extracted_by_metric.get("revenue", {}).get("value"))
 
     # 4. Construct ExtractedValue models for all 9 metrics
     models: list[ExtractedValue] = []

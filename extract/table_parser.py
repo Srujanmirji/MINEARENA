@@ -44,9 +44,16 @@ TOTAL_REVENUE_LABELS = {"total revenues", "total revenue", "total net revenues",
 PARENT_EQUITY = re.compile(r"^total (?!shareholders|stockholders)[\w.&' ]+ (shareholders|stockholders)['’] equity$")
 
 
+# Not one of the 9 metrics: total equity INCLUDING noncontrolling interest, only used to derive
+# total liabilities = total liabilities & equity − total equity (tasks/Mayur.md step 5).
+EXTRA_SYNONYMS = {"total_equity": ["total equity", "total shareholders' equity", "total stockholders' equity"]}
+
+
 def label_allowed(metric: str, label: str) -> bool:
     """Rows that can never be this metric. Shared by both extractors (parser and LLM)."""
     lbl = label.lower().strip()
+    if metric == "total_equity":
+        return "total" in lbl and "equity" in lbl and "liabilities" not in lbl and "noncontrolling" not in lbl
     if metric == "eps_diluted":
         return "diluted" in lbl
     if metric == "total_liabilities":
@@ -162,7 +169,7 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
     # 3. Match metrics using rapidfuzz against SYNONYMS with semantic filtering
     results: dict[str, dict] = {}
     for metric in target_metrics:
-        syns = SYNONYMS.get(metric, [metric])
+        syns = SYNONYMS.get(metric) or EXTRA_SYNONYMS.get(metric, [metric])
         best_row: dict | None = None
         best_score = -1.0
 
