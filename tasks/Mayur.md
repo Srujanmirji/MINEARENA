@@ -26,27 +26,27 @@ Get **real numbers with real evidence** out of the **filed 10-K document**: the 
 ## Timeline
 
 ### 1:15–1:45 PM — Setup
-- [ ] `.env` with `SEC_USER_AGENT="AuditLoop Team <real email>"` and an LLM key (Gemini; Groq as backup)
-- [ ] Open Apple's FY2024 10-K in a browser and find the balance sheet, so you've seen the real HTML:
+- [x] `.env` with `SEC_USER_AGENT="AuditLoop Team <real email>"` and an LLM key (Gemini; Groq as backup)
+- [x] Open Apple's FY2024 10-K in a browser and find the balance sheet, so you've seen the real HTML:
   `https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/` (folder listing; open the main `aapl-*.htm`)
 
 ### 1:45–3:00 PM — Client + cache  ⟵ **your checkpoint 3 PM: everything cached**
-- [ ] `edgar/cache.py`: `cached_get(url) -> bytes`; file = `cache/sec/<sha256(url)>`; on miss, `httpx.get` with User-Agent, sleep 0.15 s between calls; retry once on 429/5xx
-- [ ] `edgar/client.py`:
+- [x] `edgar/cache.py`: `cached_get(url) -> bytes`; file = `cache/sec/<sha256(url)>`; on miss, `httpx.get` with User-Agent, sleep 0.15 s between calls; retry once on 429/5xx
+- [x] `edgar/client.py`:
   - `get_cik(ticker)` via `https://www.sec.gov/files/company_tickers.json` → zero-pad to 10 digits
   - `get_latest_10k(cik)` via `https://data.sec.gov/submissions/CIK{cik}.json`: first index where `form == "10-K"` in `filings.recent`; return `accession`, `fiscal_year`, `period_end` (`reportDate`), `filing_date`, `primary_document` (`primaryDocument`)
   - `get_primary_doc(cik, accession, primary_document)` → HTML string
   - `get_company_facts(cik)` (download + cache only; **only Srujan's `verify/` may call it**)
-- [ ] `python -m edgar.client --all` caches all 5 companies: **AAPL, MSFT, NVDA, WMT, TSLA**. Commit `cache/`
+- [x] `python -m edgar.client --all` caches all 5 companies: **AAPL, MSFT, NVDA, WMT, TSLA**. Commit `cache/`
 
 URL rules: data.sec.gov uses the **10-digit** CIK (`CIK0000320193.json`); Archives uses **`int(cik)`** and the accession **without dashes**:
 `https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-','')}/{primary_document}`
 
 ### 3:00–5:00 PM — Clean + locate
-- [ ] `extract/clean.py`: `strip_ixbrl(html) -> html` with BeautifulSoup + lxml
+- [x] `extract/clean.py`: `strip_ixbrl(html) -> html` with BeautifulSoup + lxml
   - unwrap every tag whose name starts with `ix:` (keep the text inside)
   - delete `ix:header` entirely and any element with `display:none` (hidden XBRL facts)
-- [ ] `extract/locate.py`: `locate_statements(clean_html) -> {"balance_sheet","income_statement","cash_flow","segment"?}`, each `{"index", "heading", "scale", "html"}`
+- [x] `extract/locate.py`: `locate_statements(clean_html) -> {"balance_sheet","income_statement","cash_flow","segment"?}`, each `{"index", "heading", "scale", "html"}`
   - walk all `<table>`s in order; for each, look at the text just before it (previous ~500 characters) for a heading:
     - balance sheet: "consolidated balance sheets" / "statements of financial position"
     - income: "consolidated statements of operations" / "of income" / "of earnings" (**not** "comprehensive")
@@ -54,7 +54,7 @@ URL rules: data.sec.gov uses the **10-digit** CIK (`CIK0000320193.json`); Archiv
     - segment: "segment" in a note heading + a table with a revenue/net sales row
   - skip tables with fewer than 5 rows that contain numbers (the table of contents also names these statements)
   - scale from nearby text: "in millions" → 1_000_000, "in thousands" → 1_000, else 1. **EPS is never scaled**
-- [ ] Print a table of what was found for all 5. Every company must have the first 3
+- [x] Print a table of what was found for all 5. Every company must have the first 3
 
 ### 5:00–8:00 PM — Two extractors  ⟵ **checkpoint 8 PM: real AAPL through the pipeline**
 - [ ] `extract/llm.py`: `ask_json(prompt) -> dict`; cache `cache/llm/<sha256(prompt)>.json`; provider from `LLM_PROVIDER`; JSON mode; retry once on parse error
