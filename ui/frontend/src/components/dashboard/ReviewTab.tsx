@@ -222,16 +222,21 @@ function DecisionForm({ item, onDone }: { item: PendingItem; onDone: (message: s
           {busy === 'approve' ? 'Saving…' : 'Approve'}
         </button>
         <button type="button" disabled={busy !== null || !canCorrect} onClick={() => submit('correct')}
-          title={canCorrect ? undefined : 'Enter a corrected value and a reason'}
+          aria-describedby="decision-hint"
           className="min-h-11 bg-white hover:bg-blue-50 text-blue-700 border border-blue-500 text-sm font-semibold rounded-lg disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
           {busy === 'correct' ? 'Saving…' : 'Correct'}
         </button>
         <button type="button" disabled={busy !== null || !canReject} onClick={() => submit('reject')}
-          title={canReject ? undefined : 'Enter a reason'}
+          aria-describedby="decision-hint"
           className="min-h-11 bg-white hover:bg-red-50 text-red-700 border border-red-400 text-sm font-semibold rounded-lg disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">
           {busy === 'reject' ? 'Saving…' : 'Reject'}
         </button>
       </div>
+      {/* Visible (not hover-only) reason why Correct / Reject are disabled. */}
+      <p id="decision-hint" className="text-xs text-gray-600 mt-2">
+        {!canReject ? 'Correct and Reject need a reason; Correct also needs the corrected value.'
+          : !canCorrect ? 'Correct also needs the corrected value.' : ' '}
+      </p>
       <p className="text-xs text-gray-600 mt-3 flex items-center gap-1.5">
         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
         Saved to the audit log before the workflow continues.

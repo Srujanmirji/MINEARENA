@@ -4,6 +4,7 @@ audit_log is NOT created here: Srujan's audit.log.init_tables() owns it.
 """
 import json
 import sqlite3
+import threading
 from contextlib import closing
 from datetime import datetime, timezone
 from typing import Any
@@ -100,9 +101,42 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+# One app.db connection open at a time, process-wide. FastAPI runs sync endpoints on a thread
+# pool and every helper opens/closes its own connection; under ~8 overlapping requests this
+# Python's sqlite3 deadlocked inside SQLite's file locks (a close waiting on the file mutex
+# while holding the GIL). Every query here takes milliseconds, so serializing costs nothing.
+# RLock: a thread may open a nested connection (e.g. audit append inside a db helper).
+DB_LOCK = threading.RLock()
+
+
+class _LockedConnection(sqlite3.Connection):
+    """Holds DB_LOCK from open until close(). Always close it (use contextlib.closing)."""
+    _holds_lock = False
+
+    def close(self) -> None:
+        try:
+            super().close()
+        finally:
+            if self._holds_lock:
+                self._holds_lock = False
+                DB_LOCK.release()
+
+
+def open_locked(path, **kwargs) -> sqlite3.Connection:
+    """sqlite3.connect() that takes DB_LOCK until close(). Shared with audit/log.py."""
+    DB_LOCK.acquire()
+    try:
+        conn = sqlite3.connect(path, factory=_LockedConnection, **kwargs)
+    except BaseException:
+        DB_LOCK.release()
+        raise
+    conn._holds_lock = True
+    return conn
+
+
 def connect() -> sqlite3.Connection:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(config.APP_DB, timeout=30)
+    conn = open_locked(config.APP_DB, timeout=30)
     conn.row_factory = sqlite3.Row
     return conn
 

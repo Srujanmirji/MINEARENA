@@ -7,6 +7,7 @@ The report node is called "build_report" because LangGraph forbids a node named 
 state key, and "report" is a key in AuditState.
 """
 import sqlite3
+import threading
 
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
@@ -17,6 +18,8 @@ from core import config
 
 _compiled = None
 _conn: sqlite3.Connection | None = None
+_saver: SqliteSaver | None = None
+_init_lock = threading.Lock()   # FastAPI runs sync endpoints on many threads at once
 
 
 def build_graph() -> StateGraph:
@@ -51,19 +54,25 @@ def build_graph() -> StateGraph:
 def list_checkpoint_threads() -> list[str]:
     """Every thread_id with at least one checkpoint (includes runs that never reached extract)."""
     get_graph()
-    try:
-        return [r[0] for r in _conn.execute("SELECT DISTINCT thread_id FROM checkpoints")]
-    except sqlite3.OperationalError:   # table not created until the first checkpoint
-        return []
+    # _conn is shared by every thread; SqliteSaver guards it with saver.lock, so must we.
+    # Without the lock, concurrent /runs + /pending calls raced on one connection: garbled
+    # rows (IndexError -> HTTP 500) and a SQLite mutex deadlock that froze the whole API.
+    with _saver.lock:
+        try:
+            return [r[0] for r in _conn.execute("SELECT DISTINCT thread_id FROM checkpoints").fetchall()]
+        except sqlite3.OperationalError:   # table not created until the first checkpoint
+            return []
 
 
 def get_graph():
     """Compiled graph with a long-lived SqliteSaver (one connection for the process)."""
-    global _compiled, _conn
-    if _compiled is None:
-        config.DATA_DIR.mkdir(parents=True, exist_ok=True)
-        _conn = sqlite3.connect(config.CHECKPOINT_DB, check_same_thread=False)
-        _compiled = build_graph().compile(checkpointer=SqliteSaver(_conn))
+    global _compiled, _conn, _saver
+    with _init_lock:   # two first requests at once must not open two connections
+        if _compiled is None:
+            config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+            _conn = sqlite3.connect(config.CHECKPOINT_DB, check_same_thread=False)
+            _saver = SqliteSaver(_conn)
+            _compiled = build_graph().compile(checkpointer=_saver)
     return _compiled
 
 

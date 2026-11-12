@@ -44,7 +44,11 @@ def init_tables(conn: sqlite3.Connection) -> None:
 
 def _connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=10, isolation_level=None)  # autocommit; we BEGIN explicitly
+    try:   # share core.db's process-wide app.db lock (see core/db.py DB_LOCK): avoids the SQLite deadlock
+        from core.db import open_locked
+    except ImportError:   # standalone use (this module's own smoke test)
+        open_locked = sqlite3.connect
+    conn = open_locked(DB_PATH, timeout=10, isolation_level=None)  # autocommit; we BEGIN explicitly
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL")
     init_tables(conn)
