@@ -92,6 +92,19 @@ CONTRACT = {
 }
 
 
+def make_failed_run(data_dir: str, thread_id: str) -> None:
+    """Start a run whose first node raises (unknown ticker), straight on the graph, like a crash
+    inside a background job. POST /runs refuses unknown tickers, so this goes around it."""
+    code = ("from agent.graph import get_graph; from core import db; db.init_db()\n"
+            "try:\n"
+            f"    get_graph().invoke({{'ticker': 'ZZZZQQ', 'threshold': 0.85}}, "
+            f"{{'configurable': {{'thread_id': '{thread_id}'}}}})\n"
+            "except Exception as e:\n"
+            "    print('[test] graph raised as expected:', type(e).__name__)\n")
+    subprocess.run([sys.executable, "-c", code], cwd=ROOT, check=True,
+                   env={**os.environ, "AUDITLOOP_DATA_DIR": data_dir})
+
+
 def contract_checks(c: httpx.Client, samples: dict) -> None:
     """samples: contract name -> one response body (a dict) captured during the flow."""
     live = {
@@ -290,6 +303,19 @@ def main() -> int:
               f"{forced['thread_id']} {forced_run['status']}; plain POST -> {again['thread_id']} ({again['status']})")
 
         contract_checks(c, samples)
+
+        # ---- a run that crashes inside the graph: status=error with the message, also after restart
+        bad_tid = "ZZZZQQ-1"
+        kill_server(proc)
+        make_failed_run(data_dir, bad_tid)
+        proc = start_server(data_dir)
+        bad = c.get(f"/runs/{bad_tid}").json()
+        listed = {r["thread_id"]: r for r in c.get("/runs").json()}.get(bad_tid, {})
+        healthy = c.get("/health").status_code == 200 and c.get(f"/runs/{tid}").json()["status"] == "done"
+        check("   a crashed run shows status=error with its message after restart; API stays up",
+              bad.get("status") == "error" and "fetch_filing failed" in (bad.get("error") or "")
+              and listed.get("status") == "error" and healthy,
+              f"{bad.get('status')}: {(bad.get('error') or '')[:70]}")
 
         if "--real" in sys.argv:
             real_checks(c)

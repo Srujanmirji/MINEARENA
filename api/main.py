@@ -94,7 +94,18 @@ def _status(thread_id: str, snap) -> tuple[str, str | None]:
         return "error", ERRORS[thread_id]
     if not snap.next:
         return "done", None
+    failed = _checkpoint_error(snap)
+    if failed:
+        return "error", failed
     return "error", f"run stopped before '{snap.next[0]}' and was not resumed (server restarted mid-run?)"
+
+
+def _checkpoint_error(snap) -> str | None:
+    """A node that raised leaves its error in the checkpoint, so the message survives a restart."""
+    for task in snap.tasks:
+        if getattr(task, "error", None):
+            return f"{task.name} failed: {task.error}"
+    return None
 
 
 def _steps_done(thread_id: str) -> list[str]:
