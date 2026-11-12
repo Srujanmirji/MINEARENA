@@ -24,8 +24,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setScrolled(window.scrollY > 35);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
@@ -79,21 +86,21 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none transition-all duration-300 px-3 sm:px-6 pt-3 sm:pt-4">
-      {/* Centered Floating Clear Glass Island Capsule */}
+    <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] px-3 sm:px-6 pt-3 sm:pt-4">
+      {/* Centered Clear Liquid Glass Capsule: Dynamically reduces width on scroll */}
       <div
-        className={`pointer-events-auto max-w-[88rem] mx-auto rounded-full transition-all duration-300 relative overflow-hidden ${
+        className={`pointer-events-auto mx-auto rounded-full transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] relative overflow-hidden ${
           scrolled
-            ? 'bg-white/70 backdrop-blur-2xl border border-white/80 shadow-[0_14px_40px_rgba(0,0,0,0.08),inset_0_1px_2px_rgba(255,255,255,0.95)] py-2 sm:py-2.5 px-4 sm:px-6'
-            : 'bg-white/45 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.04),inset_0_1px_1px_rgba(255,255,255,0.85)] py-2.5 sm:py-3 px-4 sm:px-7'
+            ? 'w-[96%] sm:w-[90%] md:w-[82%] lg:max-w-4xl py-2 px-4 sm:px-6 bg-white/[0.30] backdrop-blur-2xl backdrop-saturate-[190%] border border-white/60 shadow-[0_20px_45px_-10px_rgba(0,0,0,0.12),0_4px_16px_rgba(0,0,0,0.04),inset_0_1.5px_2px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(255,255,255,0.3)]'
+            : 'w-full max-w-[88rem] py-3 px-5 sm:px-8 bg-white/[0.18] backdrop-blur-xl backdrop-saturate-[160%] border border-white/45 shadow-[0_8px_32px_rgba(0,0,0,0.05),inset_0_1.5px_1px_rgba(255,255,255,0.85),inset_0_-1px_1px_rgba(255,255,255,0.2)]'
         }`}
       >
-        {/* Specular glass reflection sheen across top edge */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/40 via-white/10 to-transparent pointer-events-none" />
+        {/* Specular Liquid Glass Sheen across the curved top edge */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/45 via-white/10 to-transparent pointer-events-none" />
 
-        <div className="relative z-10 flex items-center justify-between">
-          {/* Left: Brand Icon + Logo + Live Engine Badge */}
-          <div className="flex items-center gap-3">
+        <div className="relative z-10 flex items-center justify-between gap-3">
+          {/* Left: Brand Icon + Title + Live Engine Badge */}
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <a
               href="#"
               onClick={(e) => {
@@ -102,37 +109,43 @@ export const Navbar: React.FC<NavbarProps> = ({
               }}
               className="flex items-center gap-2.5 group cursor-pointer"
             >
-              <div className="p-1 rounded-lg bg-black/5 group-hover:bg-black/10 transition-colors">
+              <div className="p-1 rounded-lg bg-black/5 backdrop-blur-xs group-hover:bg-black/10 transition-colors">
                 <LogoIcon className="w-6 h-6 sm:w-7 sm:h-7 text-black transition-transform duration-300 group-hover:scale-110" />
               </div>
-              <span className="text-xl sm:text-2xl font-semibold tracking-tight text-black">
+              <span className="text-lg sm:text-xl font-semibold tracking-tight text-black">
                 AuditLoop
               </span>
             </a>
 
-            {/* Unique Glassy Status Badge */}
-            <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 backdrop-blur-xs">
+            {/* Glassy Live Engine Badge */}
+            <span
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-800 border border-emerald-500/25 backdrop-blur-xs transition-opacity duration-300 ${
+                scrolled ? 'lg:inline-flex' : 'inline-flex'
+              }`}
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               SEC Live
             </span>
           </div>
 
-          {/* Center: Frosted Glass Pill Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 bg-black/[0.03] p-1 rounded-full border border-black/[0.04]">
+          {/* Center: Frosted Glass Nav Links Track */}
+          <nav className="hidden md:flex items-center gap-1 bg-black/[0.04] backdrop-blur-xs p-1 rounded-full border border-white/40 shadow-[inset_0_1px_1px_rgba(0,0,0,0.04)]">
             {navLinks.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
                 onClick={(e) => handleLinkClick(e, link.name)}
-                className="text-xs sm:text-sm font-medium text-black/70 hover:text-black hover:bg-white/85 active:bg-white rounded-full px-4 py-1.5 transition-all duration-200 cursor-pointer shadow-none hover:shadow-xs"
+                className={`text-xs sm:text-sm font-medium text-black/75 hover:text-black hover:bg-white/80 active:bg-white/95 rounded-full transition-all duration-200 cursor-pointer shadow-none hover:shadow-xs ${
+                  scrolled ? 'px-3 py-1' : 'px-4 py-1.5'
+                }`}
               >
                 {link.name}
               </a>
             ))}
           </nav>
 
-          {/* Right: Signed In Status & Action Button */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Right: User / Action Button */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {isLoggedIn && currentUser && (
               <span
                 onClick={onLogout}
@@ -146,7 +159,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={handleActionClick}
-              className="inline-flex items-center gap-2 bg-black text-white hover:bg-zinc-800 text-xs sm:text-sm font-medium pl-4 sm:pl-5 pr-2 sm:pr-2.5 py-1.5 sm:py-2 rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.18)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.25)] active:scale-95 transition-all duration-200 group"
+              className={`inline-flex items-center gap-2 bg-black/90 hover:bg-black text-white text-xs sm:text-sm font-medium rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_22px_rgba(0,0,0,0.3)] active:scale-95 transition-all duration-300 group ${
+                scrolled
+                  ? 'pl-3.5 sm:pl-4 pr-1.5 sm:pr-2 py-1 sm:py-1.5'
+                  : 'pl-4 sm:pl-5 pr-2 sm:pr-2.5 py-1.5 sm:py-2'
+              }`}
             >
               <span>Open dashboard</span>
               <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/20 group-hover:bg-white/30 flex items-center justify-center transition-colors">
@@ -166,7 +183,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Mobile dropdown menu with matching clear frosted glass */}
+        {/* Mobile dropdown menu with matching clear liquid glass */}
         {mobileMenuOpen && (
           <div className="md:hidden mt-3 pt-3 border-t border-black/5 flex flex-col gap-2">
             {navLinks.map((link) => (
