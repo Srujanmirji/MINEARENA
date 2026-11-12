@@ -12,12 +12,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onJoinUs }) => {
         className="relative w-full rounded-2xl overflow-hidden max-w-[88rem] mx-auto shadow-sm"
         style={{ height: 'calc(100vh - 96px)' }}
       >
-        {/* Local still image: the old background video streamed from a third-party CDN (breaks offline). */}
-        <img
-          src="/hero-coins-gold.jpg"
-          alt=""
+        {/* Background video with gold color grading filter and high-res poster (local video) */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="/original-coins.jpg"
           className="object-cover absolute inset-0 w-full h-full"
           style={{ filter: 'hue-rotate(145deg) saturate(1.45) brightness(1.03) contrast(1.02)' }}
+          src="/hero-coins.mp4"
         />
 
         {/* Subtle gradient wash to guarantee crisp typography contrast */}
