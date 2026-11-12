@@ -96,10 +96,16 @@ The API sets `decision_id = f"{thread_id}:{value_id}"` itself. The UI never gene
 ```
 Built from the cached, `ix:`-stripped 10-K: `extract.get_table_html(meta, table_index)` with the row matching `row_label` wrapped in `class='hl'`. The UI renders it with that row highlighted.
 
-Inside the endpoint:
+Inside the endpoint, **record first, then resume** (PS 3.5: "record the reviewer's decision before continuing the workflow"):
 ```python
-graph.invoke(Command(resume=decision.model_dump()), config={"configurable": {"thread_id": thread_id}})
+decision_id = f"{thread_id}:{body.value_id}"
+created = db.record_decision({**body.model_dump(), "decision_id": decision_id, "thread_id": thread_id})  # INSERT OR IGNORE
+if not created:
+    return {"status": status, "duplicate": True}
+graph.invoke(Command(resume={**body.model_dump(), "decision_id": decision_id, "thread_id": thread_id}),
+             config={"configurable": {"thread_id": thread_id}})
 ```
+`apply_decision` then writes the audit row and value status. Its own `record_decision` call is a no-op because the row already exists. If the resume crashes, the decision is still on record and a retry resumes cleanly.
 
 ---
 

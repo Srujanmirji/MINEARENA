@@ -57,7 +57,7 @@ Validation runs **first**, because the score uses it.
   | `validation` (V) | 1 if no check on this value failed (`na` counts as pass); else 0 |
   `confidence = round(Σ WEIGHTS[k] × signals[k], 3)`; `is_derived` → `min(C, 0.75)`; `value is None` → 0
 - [ ] `scoring/router.py`: `route(values, threshold) -> (values, pending_ids)`
-  - auto-approve iff value present **and** confidence ≥ threshold (per-metric override from `config` if set) **and** no failed **hard** check
+  - auto-approve iff value present **and** confidence ≥ threshold (per-metric override from `config` if set) **and** no failed check of **any** severity (PS: pause whenever a validation check fails, even if the threshold slider is lowered)
   - else `status="escalated"`, `escalation_reason` = failed checks + weakest signal, e.g. `"A=L+E off by 2.1%; label match 0.71"`
   - `pending_ids` ordered: failed checks first, then lowest confidence
 - [ ] `python -m scoring.router` on mock data prints: metric · confidence · status · reason

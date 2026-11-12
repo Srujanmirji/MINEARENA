@@ -202,7 +202,7 @@ sequenceDiagram
 
 Derived values (e.g. liabilities = L&E − equity) are **capped at 0.75**, so they always reach a human.
 
-**Routing:** auto-approve iff value present **and** C ≥ threshold (0.85) **and** no failed **hard** rule. A soft failure (YoY) lowers V to 0, which caps C at 0.80, so it escalates as an anomaly.
+**Routing:** auto-approve iff value present **and** C ≥ threshold **and** no failed check of any severity. The PS requires a pause whenever a validation check fails, so this must hold even when someone lowers the threshold slider below 0.80. Severity only changes the badge and reason text: hard = "possible error", soft = "anomaly".
 
 ## 8. Storage
 

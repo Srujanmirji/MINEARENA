@@ -4,28 +4,64 @@
 
 Rehearse it twice before judging. Every click must have been done at least 10 times before.
 
+## The rule this script is built around
+
+The PS says: **"All mandatory requirements must be demonstrated during evaluation"** and **"Teams must clearly explain their architecture, workflow and implementation."** A feature that works but isn't shown on screen scores zero. Every row in the coverage table below must be seen by the judges.
+
+## Requirement coverage (tick each one during rehearsal)
+
+| PS item | Must be seen on screen | When |
+|---|---|---|
+| 3.1 EDGAR, 3–5 companies, 10-K | 5 company runs, each showing its 10-K accession number | 1:00 |
+| 3.2 ≥ 8 metrics + period, unit, evidence | One company's 9 values with period, unit and source row | 1:00 |
+| 3.3 Confidence score + **configurable** threshold | Score breakdown on one value; threshold slider | 1:30 |
+| 3.4 Accounting equation | AAPL passes A = L + E | 1:50 |
+| 3.4 **Segment validation** | AAPL segment revenues sum to total | 1:50 |
+| 3.4 **Year-on-year** | NVDA revenue flagged as an anomaly | 1:50 |
+| 3.4 Passed vs failed clearly shown | Validations tab: ✅ / ❌ / N/A | 1:50 |
+| 3.5 Auto-pause on low confidence **or** failed check | WMT run pauses live | 2:15 |
+| 3.5 Value, score, snippet, reason shown | Review card | 2:15 |
+| 3.5 **Approve**, **Correct**, **Reject** | All three clicked, one each | 2:30–3:20 |
+| 3.6 Checkpoint + resume, no duplicates | Kill + restart backend; same item waiting; row count unchanged | 2:45 |
+| 3.7 Completed and pending reviews tracked | Sidebar counters change after each decision | 3:20 |
+| 3.8 XBRL comparison + accuracy report | Accuracy report tab | 4:05 |
+| 3.8 **Auto-approved vs escalated counts** | Same tab | 4:05 |
+| 3.8 Append-only audit log with original, corrected, decision, timestamp | Audit log tab + Verify chain + refused UPDATE | 3:35 |
+| Sec. 8: explain architecture + workflow | Architecture slide + one-sentence workflow | 0:30 |
+
 ## Before judges arrive (checklist)
 
 - [ ] `cache/` populated for all 5 companies and committed
 - [ ] Backend running in a visible terminal (the kill-and-restart is part of the show)
-- [ ] Fresh `app.db`? **No.** Keep AAPL, MSFT and NVDA already done; leave WMT ready to run live; leave one TSLA item paused
+- [ ] Demo state prepared, **not** a fresh `app.db`:
+  - AAPL, MSFT, NVDA fully processed (AAPL shows segments ✅, NVDA shows YoY ❌)
+  - TSLA run paused with **at least 2 items** waiting (for Approve and Reject)
+  - WMT not run yet (runs live)
 - [ ] SQLite shell open in a second terminal: `sqlite3 data/app.db`
 - [ ] Architecture slide open in a tab
 - [ ] Laptop on charger; notifications off; font size bumped in terminal and browser
 - [ ] Phone hotspot ready in case venue Wi-Fi dies
+- [ ] **Ask organisers the slot length.** If it's over 5 minutes, slow down at 2:15–3:20 (human review), not elsewhere
 
 ## The 5 minutes
 
-| Time | Show | Say (short) |
+| Time | Sai shows | Srujan says (short) |
 |---|---|---|
-| 0:00 | Architecture slide (every statistic on it must have a source, or cut it) | "Auditors pull numbers from 10-Ks by hand. One wrong number is a misstatement. We automate the routine values and escalate only the uncertain ones to a human. Every decision is accountable." |
-| 0:30 | Filings tab, AAPL done | "Apple: 9 metrics, extracted from the filed 10-K, all auto-approved. Here's why this value is trusted." Open one value: both extractors agree, the 4 score parts, the source row. |
-| 1:15 | Click **Run WMT** | "Walmart has noncontrolling interest, so the balance sheet equation is ambiguous. Watch it pause." |
-| 1:45 | Review queue card | "Value, confidence, the exact source row, and why it escalated." Click **Correct** and enter the value. |
-| 2:30 | Terminal: Ctrl+C the backend, restart it | "We just killed the server mid-review." Refresh the UI. "Same item, still paused. Nothing re-ran, no duplicate rows." Show the row count in SQLite. |
-| 3:15 | Audit log tab → **Verify chain** | "Every decision, human and automatic, is hash-chained." In the SQLite shell run `UPDATE audit_log SET decision='approved' WHERE seq=1;` and the database rejects it. |
-| 4:00 | Accuracy report tab | "Checked against SEC XBRL, the official machine-readable data. Accuracy X%. N auto-approved, M escalated. Escalation precision P%: most escalations were real problems. And XBRL is never used before this step, it's the answer key." |
-| 4:45 | Close | "Automate the routine, escalate the uncertain, keep every decision accountable." |
+| 0:00 | Title / problem slide | "Auditors copy numbers out of 10-K reports by hand. One wrong number is a misstatement, and AI alone isn't reliable enough. We automate the confident values and send only the uncertain ones to a human." |
+| 0:30 | Architecture slide | "The agent fetches the 10-K from SEC EDGAR, extracts with two independent readers, validates, scores, then auto-approves or pauses for a human. It's a LangGraph workflow that saves state after every step. XBRL is only used at the end, to grade us." |
+| 1:00 | Filings tab: 5 companies; open AAPL | "Five real companies, latest 10-K each. Here are Apple's 9 metrics, each with its period, unit and the exact source row from the filing." |
+| 1:30 | Click one value; point at the threshold slider | "Confidence 0.97: both readers agree, the label matches, period and unit are right, checks passed. The auto-approve threshold is configurable, here." |
+| 1:50 | Validations tab | "Accounting equation: Apple balances. Segment check: Apple's five regions add up to total revenue. Year-on-year: NVIDIA's revenue jump is flagged as an anomaly. Passed, failed, N/A, all visible." |
+| 2:15 | Filings → **Run WMT** → Review queue | "Walmart. Its equity line includes noncontrolling interest, so the equation check fails. The workflow pauses by itself. The reviewer sees the value, score, source row and reason." |
+| 2:30 | **Correct** with a number + reason | "The reviewer corrects it, with a reason." |
+| 2:45 | Zeeshan: Ctrl+C backend, restart. Sai refreshes | "We just crashed the server mid-review. Restarted. The workflow resumed from its saved checkpoint, nothing re-ran, and the row count is unchanged." (Show the count in SQLite.) |
+| 3:05 | TSLA item → **Approve**; next item → **Reject** with reason | "Approve when it's right, reject when the value is unusable. Every decision is recorded before the workflow continues." |
+| 3:20 | Point at sidebar counters | "Completed and pending reviews, tracked live." |
+| 3:35 | Audit log tab → **Verify chain**; SQLite `UPDATE audit_log SET decision='approved' WHERE seq=1;` | "Every decision: original value, corrected value, decision, timestamp. Hash-chained: chain intact. Try to edit history… the database refuses." |
+| 4:05 | Accuracy report tab | "Graded against the SEC's XBRL data: accuracy X%. N values auto-approved, M escalated. Escalation precision P%: most of what we escalated really was a problem." |
+| 4:40 | Close | "Automate the routine, escalate the uncertain, keep every decision accountable." |
+
+Fill X, N, M, P with the real numbers after the 3 AM report. Never use placeholder numbers in front of judges.
 
 ## Likely judge questions (prepare these answers)
 

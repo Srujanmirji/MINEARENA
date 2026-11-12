@@ -59,7 +59,7 @@ Put these tests in `api/test_flow.py` (plain `httpx` script or pytest). Run them
 - [ ] `GET /runs`, `GET /values`, `GET /validations`, `GET/PUT /config`, `GET /audit`, `GET /audit/verify` (call Srujan's module)
 - [ ] 409 on wrong `value_id`, 422 on `correct` without `new_value`
 - [ ] `auto_approve` writes audit rows with `reviewer="system"`, `decision_id=f"{thread_id}:{value_id}"` (same key as human decisions → a value can only ever be decided once)
-- [ ] `/decision` derives `decision_id` itself; 422 if `correct`/`reject` has no `note`
+- [ ] `/decision` derives `decision_id` itself, **records the decision in `review_decisions` before calling `Command(resume=...)`** (PS 3.5), and returns 422 if `correct`/`reject` has no `note`
 - [ ] `GET /runs/{thread_id}/source/{value_id}` → table HTML with the row highlighted (calls Mayur's `extract.get_table_html`)
 - [ ] **6 PM rule:** if tests 1–5 aren't green, call the team
 
