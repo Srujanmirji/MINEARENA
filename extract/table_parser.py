@@ -39,6 +39,45 @@ def _clean_num(val: Any) -> float | None:
         return None
 
 
+TOTAL_REVENUE_LABELS = {"total revenues", "total revenue", "total net revenues", "total net revenue", "total net sales"}
+# "Total Walmart shareholders' equity": the parent's equity, which is what XBRL StockholdersEquity reports.
+PARENT_EQUITY = re.compile(r"^total (?!shareholders|stockholders)[\w.&' ]+ (shareholders|stockholders)['’] equity$")
+
+
+def label_allowed(metric: str, label: str) -> bool:
+    """Rows that can never be this metric. Shared by both extractors (parser and LLM)."""
+    lbl = label.lower().strip()
+    if metric == "eps_diluted":
+        return "diluted" in lbl
+    if metric == "total_liabilities":
+        return "total" in lbl and "current" not in lbl and "equity" not in lbl and " and " not in lbl
+    if metric == "net_income":  # parent's net income: never the NCI share, per-share or operating rows
+        return not any(w in lbl for w in ("interest", "operating", "per share", "per common share", "weighted"))
+    if metric == "equity":
+        return "noncontrolling" not in lbl and "liabilities" not in lbl
+    if metric == "revenue":
+        return "cost" not in lbl
+    return True
+
+
+def label_bonus(metric: str, label: str) -> float | None:
+    """Score floor for rows that are clearly the right one, so they beat generic synonym matches."""
+    lbl = label.lower().strip()
+    if metric == "net_income" and "attributable to" in lbl:
+        return 1.01  # "attributable to Walmart / common stockholders" beats an exact "Net income" (1.0)
+    if metric == "net_income" and "net income" in lbl:
+        return 0.95
+    if metric == "eps_diluted" and "diluted" in lbl and ("per share" in lbl or "per common share" in lbl or lbl == "diluted"):
+        return 0.95
+    if metric == "total_liabilities" and lbl == "total liabilities":
+        return 1.0
+    if metric == "equity" and PARENT_EQUITY.match(lbl):
+        return 1.01  # beats the generic "Total shareholders' equity" row that includes NCI
+    if metric == "revenue" and lbl in TOTAL_REVENUE_LABELS:
+        return 1.01  # "Total revenues" beats a line item like "Net sales" or "Automotive sales"
+    return None
+
+
 def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[str, dict]:
     """Parse one statement table HTML and extract target metrics.
 
@@ -131,30 +170,16 @@ def parse_statement_table(table_html: str, target_metrics: list[str]) -> dict[st
             lbl = r["label"].lower().strip()
 
             # Rule filters to prevent false positive matches
-            if metric == "eps_diluted":
-                if r["values"] and r["values"][0] is not None and abs(r["values"][0]) > 1000:
-                    continue
-                if "diluted" not in lbl:
-                    continue
+            if not label_allowed(metric, lbl):
+                continue
+            if metric == "eps_diluted" and r["values"] and r["values"][0] is not None and abs(r["values"][0]) > 1000:
+                continue
 
-            if metric == "total_liabilities":
-                if "current" in lbl or "total" not in lbl:
-                    continue
-
-            if metric == "net_income":
-                if "interest" in lbl or "operating" in lbl:
-                    continue
-
-            # rapidfuzz ratio
+            # rapidfuzz ratio, raised for rows that are clearly the right one
             score = max(fuzz.ratio(lbl, s.lower()) / 100.0 for s in syns)
-
-            # Boost exact domain matches
-            if metric == "net_income" and ("consolidated net income" in lbl or "net income" in lbl):
-                score = max(score, 0.95)
-            elif metric == "eps_diluted" and "diluted" in lbl and ("per share" in lbl or "per common share" in lbl or lbl == "diluted"):
-                score = max(score, 0.95)
-            elif metric == "total_liabilities" and lbl == "total liabilities":
-                score = 1.0
+            bonus = label_bonus(metric, lbl)
+            if bonus is not None:
+                score = max(score, bonus)
 
             if score > best_score:
                 best_score = score

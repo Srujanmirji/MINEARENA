@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "metric": "operating_cash_flow",
+      "row_label": "Net cash from operations",
+      "current_value": 182935,
+      "prior_value": 136162,
+      "column_header": "2026",
+      "snippet": "Net cash from operations | 182,935 | 136,162 | 118,548"
+    }
+  ]
+}

@@ -17,7 +17,7 @@ from core.models import ExtractedValue, METRICS
 from edgar.client import get_primary_doc
 from extract.clean import strip_ixbrl
 from extract.llm_extractor import extract_with_llm
-from extract.table_parser import _clean_num, parse_statement_table
+from extract.table_parser import _clean_num, label_allowed, parse_statement_table
 
 _doc_cache: dict[str, list[str]] = {}
 
@@ -133,8 +133,18 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
             item_b = res_b.get(m)
             item_a = res_a.get(m)
 
+            # Same row rules as the parser: the LLM may not pick e.g. "Total current liabilities" either.
+            if item_b and not label_allowed(m, item_b.get("row_label", "")):
+                print(f"[extractor] REJECTED llm {m}: row '{item_b.get('row_label')}' is never {m}")
+                item_b = None
+
+            # Parser found a clearly-right row (parent / total, score > 1) and the LLM disagrees:
+            # keep the parser's value; the LLM's becomes alt_value, so agreement = 0 and a human checks it.
+            parser_sure = (item_a and item_a.get("value") is not None and item_a.get("score", 0) > 1.0
+                           and item_b and item_b.get("value") != item_a.get("value"))
+
             # Decision: B if snippet verified, else A
-            if item_b and item_b.get("value") is not None:
+            if item_b and item_b.get("value") is not None and not parser_sure:
                 val = item_b["value"]
                 alt_val = item_a.get("value") if item_a else None
                 extractor_name = "llm"

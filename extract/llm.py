@@ -20,9 +20,12 @@ load_dotenv(ROOT / ".env")
 CACHE_DIR = ROOT / "cache" / "llm"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+# gemini-2.5-flash and llama-3.3-70b-versatile were retired; both replacements tested in JSON mode.
+GROQ_MODEL = "openai/gpt-oss-120b"
+GEMINI_MODEL = "gemini-3.8-flash"
 
 
 def _clean_json_text(text: str) -> str:
@@ -40,7 +43,7 @@ def _call_gemini(prompt: str) -> str:
 
     client = genai.Client(api_key=GEMINI_API_KEY)
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model=GEMINI_MODEL,
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -58,7 +61,7 @@ def _call_groq(prompt: str) -> str:
         messages=[
             {"role": "user", "content": prompt}
         ],
-        model="llama-3.3-70b-versatile",
+        model=GROQ_MODEL,
         response_format={"type": "json_object"},
         temperature=0.0,
     )
@@ -73,37 +76,25 @@ def ask_json(prompt: str) -> dict:
     if cache_path.exists():
         return json.loads(cache_path.read_text(encoding="utf-8"))
 
-    # Select provider
-    provider = LLM_PROVIDER
-    if provider == "gemini" and not GEMINI_API_KEY:
-        if GROQ_API_KEY:
-            provider = "groq"
-        else:
-            raise RuntimeError("No LLM API keys configured (GEMINI_API_KEY or GROQ_API_KEY required)")
-    elif provider == "groq" and not GROQ_API_KEY:
-        if GEMINI_API_KEY:
-            provider = "gemini"
-        else:
-            raise RuntimeError("No LLM API keys configured (GEMINI_API_KEY or GROQ_API_KEY required)")
+    # Configured provider first; the other one is the backup when a call FAILS, not only when a key is missing.
+    keys = {"groq": GROQ_API_KEY, "gemini": GEMINI_API_KEY}
+    calls = {"groq": _call_groq, "gemini": _call_gemini}
+    order = [p for p in (LLM_PROVIDER, *(k for k in keys if k != LLM_PROVIDER)) if keys.get(p)]
+    if not order:
+        raise RuntimeError("No LLM API keys configured (GEMINI_API_KEY or GROQ_API_KEY required)")
 
-    last_err: Exception | None = None
-    for attempt in range(2):
-        try:
-            if provider == "gemini":
-                raw = _call_gemini(prompt)
-            else:
-                raw = _call_groq(prompt)
+    errors: list[str] = []
+    for provider in order:
+        for attempt in range(2):  # retry once (CLAUDE.md rule 8)
+            try:
+                data = json.loads(_clean_json_text(calls[provider](prompt)))
+                cache_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                return data
+            except Exception as e:
+                errors.append(f"{provider} attempt {attempt + 1}: {str(e)[:120]}")
+        print(f"[llm] {provider} failed twice, trying next provider")
 
-            cleaned = _clean_json_text(raw)
-            data = json.loads(cleaned)
-            cache_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-            return data
-        except Exception as e:
-            last_err = e
-            if attempt == 1:
-                raise RuntimeError(f"LLM call failed after 2 attempts: {last_err}") from last_err
-
-    raise RuntimeError(f"LLM call failed: {last_err}")
+    raise RuntimeError("LLM call failed: " + " | ".join(errors))
 
 
 if __name__ == "__main__":

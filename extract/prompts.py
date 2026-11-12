@@ -8,6 +8,12 @@ Rules:
 - Use ONLY numbers that appear in the table. Never compute, round or guess.
 - current_value = the most recent fiscal year column; prior_value = the previous year.
 - snippet = the full table row exactly as written, copied character for character.
+- revenue = the TOTAL revenue line (e.g. "Total revenues"), not a component like "Net sales" when a total exists.
+- net_income and equity = the amounts attributable to the parent company / its shareholders
+  (e.g. "Net income attributable to Walmart", "Total Walmart shareholders' equity"), never the
+  consolidated line that includes noncontrolling interests, when both appear.
+- total_liabilities = only a row labelled "Total liabilities". Never "Total current liabilities"
+  and never "Total liabilities and ... equity". If there is no such row, omit it.
 - If a metric is not in this table, omit it.
 Return JSON: {{"items": [{{"metric": "...", "row_label": "...", "current_value": number, "prior_value": number|null,
                          "column_header": "...", "snippet": "..."}}]}}
