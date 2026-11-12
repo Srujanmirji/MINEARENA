@@ -97,7 +97,7 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
     """
     accession = meta["accession"]
     ticker = meta.get("ticker", "").upper()
-    cik = meta["cik"]
+    cik = meta.get("cik", "")
     fiscal_year = meta["fiscal_year"]
     period_end = meta["period_end"]
     primary_doc = meta["primary_document"]

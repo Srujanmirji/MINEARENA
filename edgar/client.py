@@ -64,6 +64,7 @@ def get_latest_10k(cik: str) -> dict:
             pass
 
     return {
+        "cik": cik_pad,
         "accession": accession,
         "fiscal_year": fiscal_year,
         "period_end": period_end,
