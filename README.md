@@ -70,7 +70,7 @@ LLM_PROVIDER=gemini                 # gemini | groq
 SEC_USER_AGENT="AuditLoop Team yourname@example.com"
 API_BASE=http://localhost:8000
 CONFIDENCE_THRESHOLD=0.85
-YOY_THRESHOLD=0.30
+YOY_THRESHOLD=0.40
 ```
 
 ## Folder structure
@@ -99,7 +99,9 @@ auditloop/
 | AAPL | 320193 | Clean baseline, 5 geographic segments |
 | MSFT | 789019 | Segments, clean balance sheet |
 | NVDA | 1045810 | Revenue more than doubled → genuine YoY anomaly |
+| WMT | 104169 | Noncontrolling interest → equity trap for A = L + E |
 | TSLA | 1318605 | Noncontrolling interests → A = L + E ambiguity |
-| JPM | 19617 | Bank, no plain "Revenue" line → genuine low confidence |
 
-Backups if one breaks: AMZN, KO.
+Backups if one breaks: KO, GOOGL, JNJ, PG. CIKs are resolved at runtime from `company_tickers.json`; the table is for reference.
+
+**Approach in one line:** extract from the filed 10-K document (inline-XBRL tags stripped) with two independent extractors, grade against XBRL Company Facts.

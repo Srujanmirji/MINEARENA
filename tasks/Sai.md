@@ -26,7 +26,8 @@ You do not write backend code. Everything you need comes through `ui/api_client.
 
 ## Timeline
 
-### 1:15–1:45 PM — Organisers + wireframe
+### 1:15–1:45 PM — Organisers + wireframe + stack decision
+- [ ] **Decide now: Streamlit or React.** React (Vite + Tailwind) only if you're genuinely fast in it. Rule: if React isn't showing the review card on real API data by **11 PM**, switch to Streamlit. Tell the group which one you picked
 - [ ] Ask the organisers (PRD §15): prizes per PS or overall? Submission time and format? Internet during judging? Post the answers in the group chat
 - [ ] Sketch the **review card** on paper. It's the most important screen (spec below)
 
@@ -46,7 +47,7 @@ You do not write backend code. Everything you need comes through `ui/api_client.
 - [ ] Flip `USE_MOCK=False`; fix shape mismatches with Zeeshan (sit together)
 - [ ] Auto-refresh while any run is `running` or `paused`: `time.sleep(3); st.rerun()` guarded by a toggle
 - [ ] Full flow live: Run TSLA → card appears → approve one, correct one, reject one → rows in Audit log tab
-- [ ] Double-click Approve → still one audit row (`decision_id` in `st.session_state`)
+- [ ] Double-click Approve → still one audit row (the API dedupes on `thread_id:value_id`; also disable the buttons after the first click)
 
 ### 11:00 PM–2:30 AM — Report + audit tabs
 - [ ] **Accuracy report:** 4 headline `st.metric`s (accuracy, pre-review accuracy, escalation precision, auto-approval error rate); bar chart accuracy by metric; table by company; calibration table (band · n · accuracy); **Download CSV** button. Works on the fake report until Srujan's lands at 2 AM
@@ -76,13 +77,14 @@ You do not write backend code. Everything you need comes through `ui/api_client.
 │   $ 72,913 M          period ending 2024-12-31                       │
 │                                                                      │
 │ Confidence  ███████░░░  0.68   (threshold 0.85)                      │
-│   verbatim ██████████ 1.0   label ████░░░░░░ 0.42   scale ██████████ │
-│   period   ██████████ 1.0   agreement ░░░░░░░░░░ 0.0                 │
+│   A agreement ░░░░░░░░░░ 0.0   L label ████░░░░░░ 0.42               │
+│   P period+unit ██████████ 1.0  V validation ░░░░░░░░░░ 0.0          │
+│   Parser (A): 72,913   LLM (B): 74,180   ← disagree                  │
 │                                                                      │
 │ ⚠ Why escalated: A = L + E off by 2.1% (equity may exclude NCI);     │
 │   label match 0.42                                                   │
 │                                                                      │
-│ Source evidence  (R5.htm · CONSOLIDATED BALANCE SHEETS)  ↗ SEC page  │
+│ Source evidence  (10-K · CONSOLIDATED BALANCE SHEETS)    ↗ SEC page  │
 │   Total stockholders' equity | 72,913 | 62,634     ← highlighted     │
 │                                                                      │
 │ [ ✓ Approve ]   [ ✎ Correct: ______ ]   [ ✕ Reject ]   note: ____    │
@@ -93,9 +95,11 @@ You do not write backend code. Everything you need comes through `ui/api_client.
 
 - The **value** is the biggest text on the screen; the **reason** is the second thing the eye hits (amber box)
 - The source row sits inside its table with the matched row highlighted (`st.dataframe` with a style, or an HTML table via `st.markdown(..., unsafe_allow_html=True)`)
-- SEC page link: `https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession_no_dashes}/{source_page}`
-- **Correct** needs a number input; disable submit until it's filled
-- `decision_id = st.session_state.setdefault(f"did:{value_id}", str(uuid4()))`
+- Source table: call `GET /runs/{thread_id}/source/{value_id}` and render its `html` (row with `class='hl'` highlighted); link to its `source_url`
+- Escalation reason as badges: "Low confidence", "Equation failed", "YoY +62%", "Possible scale error", "Extractors disagree"
+- **Correct** needs a number input **and a reason**; **Reject** needs a reason; disable submit until filled
+- The API derives `decision_id`; the UI sends `value_id`, `action`, `new_value`, `reviewer`, `note`
+- Nice to have: keyboard shortcuts A / C / R (React only; skip in Streamlit)
 - After submit: toast "Decision recorded. Workflow resumed", then refresh
 
 ### Colour meaning (use the same everywhere)
@@ -118,6 +122,6 @@ I'm Sai, P3 (frontend + UI/UX) on the AuditLoop repo. Read CLAUDE.md, docs/API.m
 I own ui/ only. Never edit anything else.
 Task now: <paste the current timeline block>.
 Streamlit app; all data via ui/api_client.py with a USE_MOCK flag that reads data/mock_values.json and returns the shapes in docs/API.md.
-Never import agent/. Keep decision_id in st.session_state per value. Never show tracebacks to the user.
+Never import agent/. The API derives decision_id; disable buttons after submit. Never show tracebacks to the user.
 Show me the plan first, then the code, then how to run it.
 ```

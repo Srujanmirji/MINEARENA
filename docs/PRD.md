@@ -35,7 +35,7 @@ Mapped one-to-one to the 8 judging criteria.
 
 | # | Judging criterion | Our metric | Target |
 |---|---|---|---|
-| 1 | Financial extraction accuracy | Correct values ÷ verifiable values vs XBRL (±0.1%) | ≥ 95% after review, ≥ 85% before review |
+| 1 | Financial extraction accuracy | Correct values ÷ verifiable values vs XBRL (within 1 unit of table scale) | ≥ 95% after review, ≥ 85% before review |
 | 2 | Confidence scoring | Accuracy per confidence band | Clearly higher accuracy in the > 0.85 band than in the < 0.6 band |
 | 3 | Auto-approval vs escalation | Auto-approval error rate (auto-approved but wrong) | 0 wrong auto-approvals |
 | 4 | Escalation precision | Escalated values that were wrong or genuine anomalies ÷ all escalated | ≥ 60% |
@@ -54,7 +54,7 @@ Mapped one-to-one to the 8 judging criteria.
 
 ## 6. Scope
 
-**In scope:** 5 companies × latest 10-K × 8 metrics = **40 values**, plus prior-year values for the year-on-year check.
+**In scope:** 5 companies × latest 10-K × 9 metrics = **45 values**, plus prior-year values for the year-on-year check.
 
 **Metrics extracted**
 
@@ -66,47 +66,54 @@ Mapped one-to-one to the 8 judging criteria.
 | 4 | `total_liabilities` | Total liabilities | Yes |
 | 5 | `equity` | Shareholders' equity | Yes |
 | 6 | `operating_cash_flow` | Operating cash flow | Yes |
-| 7 | `cash` | Cash and cash equivalents | Our choice |
+| 7 | `operating_income` | Operating income | Our choice |
 | 8 | `eps_diluted` | Diluted EPS | Our choice |
+| 9 | `cash` | Cash and cash equivalents | Our choice |
 
-Spare if one fails: `operating_income`.
+Nine metrics gives us one spare above the required 8.
 
 ## 7. Functional requirements
 
 Each requirement has an owner and acceptance criteria. "Done" means the acceptance criteria pass in a live demo.
 
 ### FR-1 SEC EDGAR integration — *Mayur*
-- Resolve ticker → CIK, find the latest 10-K accession number, download `FilingSummary.xml` and the statement pages (`R*.htm`).
+- Resolve ticker → CIK, find the latest 10-K accession number and its `primaryDocument` in the Submissions API, download the primary 10-K HTML.
 - Every request sends the `User-Agent` header and stays under 10 requests/second.
 - Every response is cached to `cache/`; the second run makes zero network calls.
 
-**Accept:** `python -m edgar.client AAPL` prints the accession number, fiscal year, period end and the 4 located pages. Works offline on a second run.
+**Accept:** `python -m edgar.client AAPL` prints the accession number, fiscal year, period end and primary document name. Works offline on a second run.
 
 ### FR-2 Financial data extraction — *Mayur*
-- Find the balance sheet, income statement, cash flow and segment pages by name, not by number.
-- Extract 8 metrics per filing with value, unit, scale, period and the exact source row text.
-- Also extract the prior-year value for each metric (same table, earlier column).
-- A second method (rapidfuzz label matching) picks its own row so the two can be compared.
+- Extract from the **filed 10-K document**, never from XBRL. Strip inline-XBRL (`ix:`) tags first so no concept names are visible.
+- Locate the balance sheet, income statement, cash-flow statement and segment note tables by their headings; read the scale ("In millions").
+- **Two independent extractors:** A = table parser (pandas + rapidfuzz synonyms), B = LLM with strict JSON. An LLM answer whose snippet isn't found word-for-word in the table is rejected.
+- Extract 9 metrics per filing with value, unit, scale, period, row label and the exact source row text, plus the prior-year value.
+- **Parser-only mode** when the LLM is unavailable.
+- **Fallback (8 PM decision):** if the primary-document locator fails for 2+ companies, use R pages with the XBRL tag links stripped, and disclose it.
 
-**Accept:** for AAPL, all 8 metrics are returned as `ExtractedValue` objects with `source_snippet` filled.
+**Accept:** for AAPL, all 9 metrics match the 9 REAL rows in `data/mock_values.json`, each with `source_snippet` filled.
 
 ### FR-3 Confidence scoring — *Srujan*
-- Score 0–1 from 5 signals: verbatim match (0.30), label match (0.25), scale found (0.15), period match (0.15), method agreement (0.15).
-- Threshold is configurable (default 0.85) from `.env` and the UI slider.
-- Each value stores its signal breakdown so the UI can explain the score.
+- **C = 0.35·A + 0.25·L + 0.20·P + 0.20·V**: A = parser/LLM agreement, L = label match, P = period + unit, V = validation (details in `docs/ARCHITECTURE.md` §7).
+- Derived values are capped at 0.75 so they always reach a human.
+- Threshold configurable (default 0.85) from `.env` and the UI slider.
+- Each value stores its four parts so the UI can explain the score.
 
 **Accept:** changing the threshold from 0.85 to 0.6 changes the number of escalated values on the next run.
 
 ### FR-4 Validation engine — *Srujan*
-- **Accounting equation:** |Assets − (Liabilities + Equity)| / Assets ≤ 0.5%. Retry with equity including noncontrolling interest and record which one balanced.
-- **Segment check:** sum of segment revenues vs total revenue ≤ 0.5%, where a segment page exists; otherwise "N/A".
-- **Year-on-year:** flag a change above `YOY_THRESHOLD` (default 30%) as an anomaly.
-- Every check result is stored as passed / failed / N/A with a human-readable detail.
+Runs **before** scoring.
+- **Accounting equation (hard):** |Assets − (Liabilities + Equity)| / Assets ≤ 0.5%; retry with equity including noncontrolling interest before flagging.
+- **Segment sum (hard when available):** Σ segment revenue vs total revenue ≤ 0.5%; otherwise "N/A".
+- **Year-on-year (soft):** change above `YOY_THRESHOLD` (default 40%) is an anomaly.
+- **Scale sanity (hard):** value ≈ 1,000× or ÷1,000 the prior year → "possible scale error".
+- **Sign (hard):** revenue, total assets, total liabilities > 0.
+- Every result stored as passed / failed / N/A with severity and a human-readable detail.
 
-**Accept:** NVDA revenue is flagged by year-on-year; AAPL segments sum to total revenue.
+**Accept:** NVDA revenue is flagged by year-on-year; AAPL passes A = L + E; a value multiplied by 1,000 is flagged as a scale error.
 
 ### FR-5 Automated decision — *Srujan (logic), Zeeshan (graph)*
-- A value is auto-approved only if confidence ≥ threshold **and** it passed every check that applies to it **and** it is not missing.
+- A value is auto-approved only if confidence ≥ threshold **and** no **hard** rule failed **and** it is not missing.
 - Otherwise it is escalated with a reason string, e.g. *"A = L + E off by 2.1%; label match 0.71"*.
 - Auto-approvals are written to the audit log as `reviewer = "system"`.
 
@@ -134,7 +141,8 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 **Accept:** a judge can complete one approve, one correct and one reject from the UI without help.
 
 ### FR-9 Ground-truth verification — *Srujan*
-- After reviews finish, compare each final value to XBRL Company Facts, matched by tag + accession + period end.
+- After reviews finish, compare each final value to XBRL Company Facts, matched by tag + accession + `form = 10-K` + `fp = FY` + period end.
+- Correct = within **one unit of the table's scale** ($1M for "in millions", $0.01 for EPS).
 - XBRL data is **never** used before this step.
 
 **Accept:** the report shows accuracy per metric and per company, and lists values with no ground truth separately.
@@ -157,8 +165,8 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 ### Bonus (only after the 3 AM checkpoint passes)
 | ID | Feature | Owner | Effort |
 |---|---|---|---|
-| B-1 | Adaptive thresholds: lower a metric's threshold by 0.05 if reviewers approve ≥ 80% of its escalations unchanged (min 5 reviews, floor 0.6) | Srujan | 1 h |
-| B-2 | AI explanation of each year-on-year anomaly (2 sentences, labelled AI-generated) | Mayur | 1 h |
+| B-1 | Adaptive thresholds: if reviewers approve 90%+ of a metric's escalations in a score band unchanged (min 5 reviews), lower that metric's threshold by 0.02 (floor 0.75); never relax hard rules | Srujan | 1 h |
+| B-2 | AI explanation of each year-on-year anomaly from the filing's MD&A text (2 sentences, labelled AI-generated) | Mayur | 1 h |
 | B-3 | EDGAR fetch + XBRL lookup as MCP tools (FastMCP) | Zeeshan | 1–2 h |
 | B-4 | Multi-period variance chart (3 years per metric) | Sai | 1 h |
 
@@ -199,7 +207,7 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 
 | Metric | Formula |
 |---|---|
-| Correct | \|final − xbrl\| / \|xbrl\| ≤ 0.001 (after scaling to the same unit) |
+| Correct | \|final − xbrl\| ≤ one unit of the table's scale (after scaling to base units) |
 | Accuracy | correct ÷ values with ground truth |
 | Pre-review accuracy | same, using the originally extracted value |
 | Escalation precision | escalated values that were wrong before review **or** flagged as YoY anomalies ÷ all escalated values |
@@ -212,13 +220,14 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 |---|---|---|---|
 | Ticker → CIK | `https://www.sec.gov/files/company_tickers.json` | CIK lookup | Fetch step |
 | Submissions | `https://data.sec.gov/submissions/CIK{cik:010d}.json` | Latest 10-K accession | Fetch step |
-| Filing index | `https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_dashes}/FilingSummary.xml` | Find statement pages | Locate step |
-| Statement pages | same folder + `R{n}.htm` | Extraction + evidence | Extract step |
+| 10-K document | `https://www.sec.gov/Archives/edgar/data/{int(cik)}/{acc_no_dashes}/{primaryDocument}` | Extraction + source evidence | Fetch / extract |
+| Filing index (fallback only) | same folder + `FilingSummary.xml` → `R{n}.htm` | Fallback locator | Only if the 8 PM decision says so |
 | Company Facts | `https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json` | **Ground truth only** | Verify step |
 
 ## 12. Assumptions and constraints
 
-- The latest 10-K of each company has a `FilingSummary.xml` with named statement pages (verified for AAPL).
+- Each company's latest 10-K primary document contains its financial statements as HTML tables with standard headings.
+- Every statistic in the pitch has a cited source; uncited numbers are cut.
 - Free-tier LLM limits are enough for ~50 calls.
 - All code is written during the 24 hours (PS rule). These docs are planning, not code.
 - XBRL is the answer key. Using it during extraction would make accuracy meaningless; we keep it out on purpose and will say so to judges.
@@ -229,8 +238,9 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 |---|---|
 | Pause/resume not working | Built first on mock data; checkpoint at 4 PM; whole team swarms if it fails |
 | Wi-Fi fails during judging | `cache/` committed before judging |
-| LLM rate limit | Groq fallback via `LLM_PROVIDER`; LLM responses cached by page hash |
-| Too few real escalations | JPM + TSLA chosen for genuine ambiguity; labelled "inject error" toggle as a last resort |
+| LLM rate limit or outage | Groq fallback via `LLM_PROVIDER`; LLM responses cached; parser-only mode as last resort |
+| Primary-document locator unreliable | 8 PM decision: fall back to R pages with tag links stripped, disclosed to judges |
+| Too few real escalations | NVDA (YoY), WMT + TSLA (noncontrolling interest) chosen for genuine ambiguity; never fake data |
 | Integration breaks at night | Folder ownership, shared schema, 5 integration checkpoints |
 
 ## 14. Milestones (12–13 Nov)
@@ -251,6 +261,7 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 - [ ] Exact submission time and format (repo link? video? slides?)
 - [ ] Is internet available during judging?
 - [ ] Final product name
+- [ ] Demo slot length (our script is 5 min; Zeeshan's draft was 7)
 
 ## 16. Glossary
 
@@ -261,7 +272,9 @@ Each requirement has an owner and acceptance criteria. "Done" means the acceptan
 | CIK | Central Index Key, the SEC's company ID |
 | Accession number | Unique ID of one filing, e.g. `0000320193-24-000123` |
 | XBRL | Machine-readable tags on filing numbers; Company Facts is the API that serves them |
-| R pages | Small HTML pages per financial statement, listed in `FilingSummary.xml` |
+| Primary document | The main 10-K HTML file as filed; our extraction source |
+| Inline XBRL (`ix:` tags) | XBRL tags embedded in the 10-K HTML; we strip them before extracting |
+| R pages | SEC-generated HTML pages per statement, rendered from XBRL; fallback only |
 | Interrupt | LangGraph call that pauses a graph and waits for outside input |
 | Checkpointer | Stores graph state after every step so it can resume |
 | Idempotent | Running it twice has the same effect as running it once |

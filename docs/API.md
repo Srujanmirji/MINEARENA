@@ -37,7 +37,7 @@ Base URL: `API_BASE` from `.env` (default `http://localhost:8000`). All bodies a
   "status": "paused",
   "next": ["human_review"],
   "steps_done": ["fetch_filing","locate_statements","extract","score_confidence","validate","route","auto_approve"],
-  "interrupt": { "value": { "...ExtractedValue..." }, "reason": "A = L + E off by 2.1% (equity excl. NCI)" },
+  "interrupt": { "value": { "...ExtractedValue..." }, "reason": "A = L + E off by 2.1% (equity excl. NCI)" },   // from result["__interrupt__"][0] / state.tasks
   "error": null
 }
 ```
@@ -66,22 +66,35 @@ Only `is_current: true` items can be decided. Show the others as "queued".
 ```json
 // request
 {
-  "decision_id": "6f1c2a8e-3b9d-4c51-9e0a-7a1d2b3c4d5e",
-  "value_id": "0001318605-25-000xxx:equity",
+  "value_id": "0000104169-25-000xxx:equity",
   "action": "correct",           // approve | correct | reject
-  "new_value": 72913,            // required for "correct", same scale as the table
+  "new_value": 91013,            // required for "correct", same scale as the table
   "reviewer": "Srujan",
-  "note": "Used equity incl. NCI"
+  "note": "Used equity incl. NCI" // required for "correct" and "reject"
 }
 // response 200
-{ "status": "paused", "next_value_id": "0001318605-25-000xxx:total_liabilities", "duplicate": false }
+{ "status": "paused", "next_value_id": "0000104169-25-000xxx:total_liabilities", "duplicate": false }
 ```
+The API sets `decision_id = f"{thread_id}:{value_id}"` itself. The UI never generates ids.
+
 | Case | Response |
 |---|---|
 | `value_id` ≠ currently paused item | **409** `{ "detail": "not the current item" }` |
-| `decision_id` already used | **200** with `"duplicate": true`, no resume |
+| This value was already decided (`decision_id` exists) | **200** with `"duplicate": true`, no resume |
 | `action == "correct"` and no `new_value` | **422** |
+| `action` is `correct` or `reject` and no `note` | **422** |
 | Run not paused | **409** |
+
+### `GET /runs/{thread_id}/source/{value_id}` — source evidence
+```json
+{
+  "heading": "CONSOLIDATED BALANCE SHEETS",
+  "scale_text": "(In millions)",
+  "html": "<table>…<tr class='hl'>…Total shareholders' equity…</tr>…</table>",
+  "source_url": "https://www.sec.gov/Archives/edgar/data/104169/000010416925000xxx/wmt-20250131.htm"
+}
+```
+Built from the cached, `ix:`-stripped 10-K: `extract.get_table_html(meta, table_index)` with the row matching `row_label` wrapped in `class='hl'`. The UI renders it with that row highlighted.
 
 Inside the endpoint:
 ```python
@@ -98,9 +111,9 @@ Returns `ExtractedValue[]` (with `status`, `final_value`, `signals`, `validation
 ### `GET /validations?ticker=AAPL`
 ```json
 [
-  { "ticker": "AAPL", "check": "A=L+E",      "status": "passed", "detail": "diff 0.00%" },
-  { "ticker": "AAPL", "check": "segment_sum","status": "passed", "detail": "5 segments, diff 0.00%" },
-  { "ticker": "NVDA", "check": "yoy:revenue","status": "failed", "detail": "+114% vs prior year (threshold 30%)" }
+  { "ticker": "AAPL", "check": "A=L+E",      "severity": "hard", "status": "passed", "detail": "diff 0.00%" },
+  { "ticker": "AAPL", "check": "segment_sum","severity": "hard", "status": "passed", "detail": "5 segments, diff 0.00%" },
+  { "ticker": "NVDA", "check": "yoy:revenue","severity": "soft", "status": "failed", "detail": "+114% vs prior year (threshold 40%)" }
 ]
 ```
 
@@ -150,7 +163,7 @@ Returns `ExtractedValue[]` (with `status`, `final_value`, `signals`, `validation
 
 ### `GET /config` · `PUT /config`
 ```json
-{ "threshold": 0.85, "yoy_threshold": 0.30 }
+{ "threshold": 0.85, "yoy_threshold": 0.40 }
 ```
 A changed threshold applies to **new** runs only, not to already-routed values. Say this in the UI.
 

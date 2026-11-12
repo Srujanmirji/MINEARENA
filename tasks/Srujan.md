@@ -35,27 +35,29 @@ Decide **which values a human must see**, **prove how good the system is**, and 
 ### 1:45–3:30 PM — Audit log  ⟵ **deliver to Zeeshan by 4 PM**
 - [ ] `audit/log.py`
   - `init_tables(conn)`: `audit_log` DDL + both triggers from DATA_MODEL §3
-  - `append(entry) -> dict`: `prev_hash` = last row's hash or `"GENESIS"`; `hash = sha256(prev_hash + json.dumps(row_without_seq_and_hash, sort_keys=True, default=str))`; `INSERT`; on `UNIQUE` failure for `decision_id`, return the existing row (idempotent)
+  - `append(entry) -> dict` (`entry["decision_id"] = f"{thread_id}:{value_id}"`, set by Zeeshan's code): `prev_hash` = last row's hash or `"GENESIS"`; `hash = sha256(prev_hash + json.dumps(row_without_seq_and_hash, sort_keys=True, default=str))`; `INSERT`; on `UNIQUE` failure for `decision_id`, return the existing row (idempotent)
   - `list_rows(limit=200)`: newest first
   - `verify_chain() -> {"ok", "rows", "broken_at_seq"}`: recompute in `seq` order
 - [ ] Smoke test (`python -m audit.log`): append 3 → verify OK; same `decision_id` twice → still 3 rows; `UPDATE audit_log SET decision='approved' WHERE seq=1;` in `sqlite3 data/app.db` → error
 
-### 3:30–7:00 PM — Confidence, validation, routing  ⟵ **deliver to Zeeshan by 7 PM**
-- [ ] `scoring/confidence.py`: `score_values(values, period_end) -> values`
-  | Signal | How |
+### 3:30–7:00 PM — Validation, confidence, routing  ⟵ **deliver to Zeeshan by 7 PM**
+Validation runs **first**, because the score uses it.
+- [ ] `scoring/validation.py`: `validate_filing(values, segments, cfg) -> values`. Each result: `{"check","severity":"hard"|"soft","status":"passed"|"failed"|"na","detail"}`
+  - **A = L + E (hard):** tolerance 0.5% of assets; if it fails and the equity label lacks "noncontrolling", note "equity may exclude NCI"; attach to assets, liabilities, equity
+  - **Segment sum (hard):** only if `segments` is non-empty, else `na`; attach to revenue
+  - **YoY (soft):** change > 40% → `"+114% vs prior"`
+  - **Scale sanity (hard):** 500 ≤ value/prior ≤ 2000 (or the reverse) → `"possible scale error"`
+  - **Sign (hard):** revenue, total assets, total liabilities must be > 0
+- [ ] `scoring/confidence.py`: `score_values(values, period_end) -> values`. **C = 0.35·A + 0.25·L + 0.20·P + 0.20·V**
+  | Part | How |
   |---|---|
-  | `verbatim` | Format `value` with and without commas; 1 if found in `source_snippet`, else 0. `is_derived` → 0 |
-  | `label` | `max(rapidfuzz.fuzz.token_set_ratio(row_label, s) for s in SYNONYMS[metric]) / 100` |
-  | `scale` | 1 if the header scale was read (`scale > 1`) or the metric is EPS; else 0.5 |
-  | `period` | 1 if `period_end ==` the filing's period end, else 0 |
-  | `agreement` | 1 if `alt_value == value`; 0.5 if `alt_value is None`; else 0 |
-  `confidence = round(Σ WEIGHTS[k] × signals[k], 3)`; `value is None` → 0
-- [ ] `scoring/validation.py`: `validate_filing(values, segments, yoy_threshold) -> values`
-  - **A = L + E:** tolerance 0.5% of assets; on fail, note "equity may exclude NCI" if the label lacks "noncontrolling"; attach to assets, liabilities, equity
-  - **Segment sum:** only if `segments` is non-empty, else `status: "na"`; attach to revenue
-  - **YoY:** change > threshold → `{"check":"yoy","status":"failed","detail":"+114% vs prior"}`
+  | `agreement` (A) | 1 if `alt_value` within 1 unit of `value`; 0.5 if one of them is None; 0 if they disagree |
+  | `label` (L) | `max(rapidfuzz.fuzz.token_set_ratio(row_label, s) for s in SYNONYMS[metric]) / 100` |
+  | `period_unit` (P) | 1 if `period_end ==` the filing's period end **and** scale detected; 0.5 if one; 0 if neither |
+  | `validation` (V) | 1 if no check on this value failed (`na` counts as pass); else 0 |
+  `confidence = round(Σ WEIGHTS[k] × signals[k], 3)`; `is_derived` → `min(C, 0.75)`; `value is None` → 0
 - [ ] `scoring/router.py`: `route(values, threshold) -> (values, pending_ids)`
-  - auto-approve iff value present **and** confidence ≥ threshold (per-metric override from `config` if set) **and** no failed check
+  - auto-approve iff value present **and** confidence ≥ threshold (per-metric override from `config` if set) **and** no failed **hard** check
   - else `status="escalated"`, `escalation_reason` = failed checks + weakest signal, e.g. `"A=L+E off by 2.1%; label match 0.71"`
   - `pending_ids` ordered: failed checks first, then lowest confidence
 - [ ] `python -m scoring.router` on mock data prints: metric · confidence · status · reason
@@ -63,13 +65,13 @@ Decide **which values a human must see**, **prove how good the system is**, and 
 > Ask your AI tool to write these. The table above *is* the spec; paste it in.
 
 ### 7:00–8:00 PM — Real AAPL  ⟵ **checkpoint 8 PM (Mayur leads)**
-- [ ] Run your functions on Mayur's real AAPL output; check the signals look sane
+- [ ] Run your functions on Mayur's real AAPL output; check the 4 score parts look sane. AAPL must pass every validation (its real values balance: 308,030 + 56,950 = 364,980)
 
 ### 8:00–11:00 PM — Ground truth
 - [ ] `verify/xbrl.py`: `verify_values(values, facts, accession) -> rows` (DATA_MODEL §4)
   - tag list per metric; first tag with a matching fact wins
-  - match on `accn == accession` and `end == period_end`; duration metrics also need `start` ≈ one year before `end`
-  - compare in base units (`final_value × scale`); correct if within 0.1%
+  - match on `accn == accession`, `form == "10-K"`, `fp == "FY"` and `end == period_end`; duration metrics also need `start` ≈ one year before `end`
+  - compare in base units (`final_value × scale`); correct if |our − xbrl| ≤ **one unit of the table's scale** (`scale`; 0.01 for EPS)
   - also compute `orig_match` from the pre-review `value` (needed for escalation precision)
   - write `verification` rows (`INSERT OR REPLACE`; re-verification is allowed)
 - [ ] **11 PM checkpoint is Sai's.** Attend, but don't drive it
@@ -88,8 +90,9 @@ Decide **which values a human must see**, **prove how good the system is**, and 
 
 ### 3:00–5:00 AM — Honest tuning + pitch numbers
 - [ ] Auto-approval error rate > 0? Find out why; fix the signal or raise the threshold
-- [ ] **Pick one threshold and keep it.** Re-tuning on the same 40 values is overfitting, and judges may ask
+- [ ] **Pick one threshold and keep it.** Re-tuning on the same 45 values is overfitting, and judges may ask
 - [ ] Put the real numbers into `docs/DEMO.md` and give Sai 3 bullets for the results slide (accuracy, escalation precision, calibration)
+- [ ] Problem-slide statistics: keep only ones with a source you've opened yourself. Zeeshan's draft had "1 in 3" and "1 in 4" for the same stat; cut anything you can't cite
 
 ### 5:00–7:00 AM — Sleep
 

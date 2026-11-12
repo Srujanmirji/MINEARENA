@@ -27,14 +27,14 @@ Make the workflow **pause, survive a crash, and resume without doing anything tw
 
 ### 1:15–1:45 PM — Repo + contract
 - [ ] Create the repo skeleton: all folders with `__init__.py`, `requirements.txt`, `.env.example`, `.gitignore` (see `CONTRIBUTING.md`)
-- [ ] `core/models.py`: copy from `docs/DATA_MODEL.md` §1 **exactly**
-- [ ] `core/config.py`: load `.env`; `THRESHOLD`, `YOY_THRESHOLD`, `SEC_USER_AGENT`, `LLM_PROVIDER`; `SYNONYMS` from DATA_MODEL §5; `WEIGHTS = {"verbatim":0.30,"label":0.25,"scale":0.15,"period":0.15,"agreement":0.15}`
+- [ ] `core/models.py`: copy from `docs/DATA_MODEL.md` §1 **exactly** (9 metrics incl. `operating_income`; `extractor`, `table_index` fields; deterministic `decision_id`)
+- [ ] `core/config.py`: load `.env`; `THRESHOLD`, `YOY_THRESHOLD`, `SEC_USER_AGENT`, `LLM_PROVIDER`; `SYNONYMS` from DATA_MODEL §5; `WEIGHTS = {"agreement":0.35,"label":0.25,"period_unit":0.20,"validation":0.20}`; `DERIVED_CAP = 0.75`; `YOY_THRESHOLD` default 0.40; `TICKERS = ["AAPL","MSFT","NVDA","WMT","TSLA"]`
 - [ ] Push. Tell the group "contract is merged"
 
 ### 1:45–3:00 PM — DB + graph skeleton
 - [ ] `core/db.py`: `init_db()` (all tables except `audit_log`, which Srujan's `audit.log.init_tables()` creates; call it from `init_db`), `upsert_values`, `set_status`, `record_decision`, `get_values(thread_id|ticker)`, `get_config/set_config`
 - [ ] `agent/state.py`: `AuditState` TypedDict (ARCHITECTURE §3)
-- [ ] `agent/nodes.py`: all 11 nodes. Real `human_review` / `apply_decision` / `auto_approve`; others call stubs for now
+- [ ] `agent/nodes.py`: all 11 nodes, in the order fetch → locate → extract → **validate → score** → route → auto_approve → review loop → verify → report. Real `human_review` / `apply_decision` / `auto_approve`; others call stubs for now
 - [ ] `agent/graph.py`: `build_graph()` with edges + conditional edges; long-lived `SqliteSaver` (see below)
 
 ```python
@@ -49,7 +49,7 @@ graph = build_graph().compile(checkpointer=SqliteSaver(conn))
 - [ ] **Test 1:** run on mock data pauses at the first escalated item
 - [ ] **Test 2:** approve → resumes → pauses at the next item
 - [ ] **Test 3:** kill uvicorn while paused, restart, `GET /runs/{id}` shows the same paused item
-- [ ] **Test 4:** same `decision_id` sent twice → one `review_decisions` row, one audit row, `"duplicate": true`
+- [ ] **Test 4:** same decision sent twice (same `thread_id:value_id`) → one `review_decisions` row, one audit row, `"duplicate": true`
 - [ ] **Test 5:** row count of `extracted_values` unchanged after resume
 
 Put these tests in `api/test_flow.py` (plain `httpx` script or pytest). Run them at every checkpoint after this.
@@ -58,7 +58,9 @@ Put these tests in `api/test_flow.py` (plain `httpx` script or pytest). Run them
 - [ ] Startup recovery: rebuild run list from DB, `graph.get_state` each, mark paused
 - [ ] `GET /runs`, `GET /values`, `GET /validations`, `GET/PUT /config`, `GET /audit`, `GET /audit/verify` (call Srujan's module)
 - [ ] 409 on wrong `value_id`, 422 on `correct` without `new_value`
-- [ ] `auto_approve` writes audit rows with `reviewer="system"`, `decision_id=f"auto:{value_id}"` (deterministic → idempotent)
+- [ ] `auto_approve` writes audit rows with `reviewer="system"`, `decision_id=f"{thread_id}:{value_id}"` (same key as human decisions → a value can only ever be decided once)
+- [ ] `/decision` derives `decision_id` itself; 422 if `correct`/`reject` has no `note`
+- [ ] `GET /runs/{thread_id}/source/{value_id}` → table HTML with the row highlighted (calls Mayur's `extract.get_table_html`)
 - [ ] **6 PM rule:** if tests 1–5 aren't green, call the team
 
 ### 6:00–8:00 PM — Wire real modules  ⟵ **checkpoint 8 PM (real AAPL)**
@@ -71,7 +73,7 @@ Put these tests in `api/test_flow.py` (plain `httpx` script or pytest). Run them
 - [ ] `POST /runs` with `force: true` → new thread id
 
 ### 11:00 PM–2:30 AM — All 5 companies
-- [ ] Run AAPL, MSFT, NVDA, TSLA, JPM; fix crashes (JPM will be the weird one)
+- [ ] Run AAPL, MSFT, NVDA, WMT, TSLA; fix crashes (WMT and TSLA have noncontrolling interest, so expect escalations)
 - [ ] Errors set the run status to `error` with a message; they never crash the API
 
 ### 2:30–5:00 AM — Support verification  ⟵ **checkpoint 3 AM**
@@ -98,6 +100,6 @@ I'm Zeeshan, P1 on the AuditLoop repo. Read CLAUDE.md, docs/ARCHITECTURE.md, doc
 I own core/ (except models.py), agent/ and api/. Only edit those.
 Task now: <paste the current timeline block>.
 Use LangGraph interrupt() + Command(resume=...) with a long-lived SqliteSaver(sqlite3.connect(..., check_same_thread=False)).
-human_review must have NO side effects; all writes go in apply_decision, idempotent by decision_id.
+human_review must have NO side effects and no try/except around interrupt(); all writes go in apply_decision, idempotent by decision_id = f"{thread_id}:{value_id}".
 Show me the plan first, then the code, then how to test it.
 ```
