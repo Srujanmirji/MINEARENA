@@ -41,7 +41,7 @@ def _clean_num(val: Any) -> float | None:
 
 TOTAL_REVENUE_LABELS = {"total revenues", "total revenue", "total net revenues", "total net revenue", "total net sales"}
 # "Total Walmart shareholders' equity": the parent's equity, which is what XBRL StockholdersEquity reports.
-PARENT_EQUITY = re.compile(r"^total (?!shareholders|stockholders)[\w.&' ]+ (shareholders|stockholders)['’] equity$")
+PARENT_EQUITY = re.compile(r"^total (?!shareholders|stockholders|shareowners)[\w.&' ]+ (shareholders|stockholders|shareowners)['’] equity$")
 
 
 # Not one of the 9 metrics: total equity INCLUDING noncontrolling interest, only used to derive
@@ -61,7 +61,7 @@ def label_allowed(metric: str, label: str) -> bool:
     if metric == "net_income":  # parent's net income: never the NCI share, per-share or operating rows
         return not any(w in lbl for w in ("interest", "operating", "per share", "per common share", "weighted"))
     if metric == "equity":
-        return "noncontrolling" not in lbl and "liabilities" not in lbl
+        return "noncontrolling" not in lbl and "liabilities" not in lbl and "method" not in lbl
     if metric == "revenue":
         return "cost" not in lbl
     return True
@@ -78,8 +78,10 @@ def label_bonus(metric: str, label: str) -> float | None:
         return 0.95
     if metric == "total_liabilities" and lbl == "total liabilities":
         return 1.0
-    if metric == "equity" and PARENT_EQUITY.match(lbl):
-        return 1.01  # beats the generic "Total shareholders' equity" row that includes NCI
+    if metric == "equity" and (PARENT_EQUITY.match(lbl) or ("equity" in lbl and "attributable to" in lbl)):
+        # The parent's equity ("Total Walmart shareholders' equity", "Equity Attributable to
+        # Shareowners of The Coca-Cola Company") beats a generic total that includes NCI.
+        return 1.01
     if metric == "revenue" and lbl in TOTAL_REVENUE_LABELS:
         return 1.01  # "Total revenues" beats a line item like "Net sales" or "Automotive sales"
     return None

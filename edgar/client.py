@@ -15,12 +15,44 @@ from edgar.cache import cached_get, get_network_call_count, reset_network_call_c
 TICKERS: list[str] = ["AAPL", "MSFT", "NVDA", "WMT", "TSLA"]
 
 
+TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+
+
+def _company_list() -> list[dict]:
+    """SEC's ticker list (cached on disk): [{"cik_str", "ticker", "title"}, ...]."""
+    return list(json.loads(cached_get(TICKERS_URL).decode("utf-8")).values())
+
+
+def search_companies(query: str, limit: int = 8) -> list[dict]:
+    """Companies whose ticker or name matches `query`, best first: exact ticker, ticker prefix,
+    name prefix, then name contains. Uses only the cached SEC ticker list (no other SEC call)."""
+    q = query.strip().upper()
+    if not q:
+        return []
+    ranked = []
+    for item in _company_list():
+        ticker, name = item.get("ticker", "").upper(), item.get("title", "")
+        upper_name = name.upper()
+        rank = (0 if ticker == q else 1 if ticker.startswith(q) else
+                2 if upper_name.startswith(q) else 3 if q in upper_name else None)
+        if rank is not None:
+            ranked.append((rank, len(ticker), ticker, {"ticker": ticker, "name": name,
+                                                       "cik": str(item["cik_str"]).zfill(10)}))
+    ranked.sort(key=lambda r: r[:3])
+    seen, out = set(), []
+    for *_, hit in ranked:            # one row per company (several share classes share a CIK)
+        if hit["cik"] not in seen:
+            seen.add(hit["cik"])
+            out.append(hit)
+        if len(out) == limit:
+            break
+    return out
+
+
 def get_cik(ticker: str) -> str:
     """Return the 10-digit zero-padded CIK for a given stock ticker."""
     t_clean = ticker.strip().upper()
-    url = "https://www.sec.gov/files/company_tickers.json"
-    data = json.loads(cached_get(url).decode("utf-8"))
-    for item in data.values():
+    for item in _company_list():
         if item.get("ticker", "").upper() == t_clean:
             return str(item["cik_str"]).zfill(10)
     raise ValueError(f"Ticker {ticker} not found in SEC company tickers")

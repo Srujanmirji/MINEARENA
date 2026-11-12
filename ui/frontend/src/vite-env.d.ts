@@ -36,4 +36,5 @@ declare module 'lucide-react' {
   export const RefreshCw: Icon;
   export const Play: Icon;
   export const Download: Icon;
+  export const Search: Icon;
 }

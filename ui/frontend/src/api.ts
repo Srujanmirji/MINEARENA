@@ -138,8 +138,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const post = <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(body) });
 const put = <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) });
 
+export interface Company { ticker: string; name: string; cik: string }
+
 export const api = {
   health: () => request<Health>('/health'),
+
+  /** Search SEC's ticker list by ticker or name (any US company that files a 10-K). */
+  searchCompanies: (q: string) => request<Company[]>('/companies' + query({ q, limit: 8 })),
 
   /** Starts a run in the background, or returns the existing one (created: false) unless force. */
   startRun: (ticker: string, force = false) => post<StartRunResult>('/runs', { ticker, force }),

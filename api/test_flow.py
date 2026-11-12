@@ -154,6 +154,14 @@ def main() -> int:
     try:
         c = httpx.Client(base_url=BASE, timeout=60)
 
+        # ---- company search (the dashboard's 'audit any company' box)
+        ko = c.get("/companies", params={"q": "coca"}).json()
+        check("   GET /companies finds Coca-Cola by name; empty query -> []; long query -> 422",
+              ko and ko[0]["ticker"] == "KO" and len(ko[0]["cik"]) == 10
+              and c.get("/companies", params={"q": ""}).json() == []
+              and c.get("/companies", params={"q": "x" * 61}).status_code == 422,
+              str(ko[:2]))
+
         # ---- Test 1: run on mock data pauses at the first escalated item
         r = c.post("/runs", json={"ticker": TICKER}).json()
         tid = r["thread_id"]

@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "Net Operating Revenues",
+      "current_value": 47941,
+      "prior_value": 47061,
+      "column_header": "2025",
+      "snippet": "Net Operating Revenues | $ | 47,941 | $ | 47,061 | $ | 45,754"
+    },
+    {
+      "metric": "operating_income",
+      "row_label": "Operating Income",
+      "current_value": 13762,
+      "prior_value": 9992,
+      "column_header": "2025",
+      "snippet": "Operating Income | 13,762 | 9,992 | 11,311"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "Net Income Attributable to Shareowners of The Coca-Cola Company",
+      "current_value": 13107,
+      "prior_value": 10631,
+      "column_header": "2025",
+      "snippet": "Net Income Attributable to Shareowners of The Coca-Cola Company | $ | 13,107 | $ | 10,631 | $ | 10,714"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Diluted Net Income Per Share1",
+      "current_value": 3.04,
+      "prior_value": 2.46,
+      "column_header": "2025",
+      "snippet": "Diluted Net Income Per Share1 | $ | 3.04 | $ | 2.46 | $ | 2.47"
+    }
+  ]
+}

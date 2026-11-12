@@ -4,6 +4,7 @@ import { api, type Config, type RunStatus } from '../../api';
 import { TICKERS, errorText } from './format';
 import { Empty, ErrorBox, Loading, StatCard } from './states';
 import { useApi } from './useApi';
+import { CompanySearch } from './CompanySearch';
 
 const RUN_STYLE: Record<RunStatus, { label: string; cls: string }> = {
   running: { label: 'Running', cls: 'bg-blue-100 text-blue-800' },
@@ -60,7 +61,8 @@ export function RunsTab({ onReview, onConfigChange, config }: Props) {
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-600 mt-2">A company that already has a run reopens it instead of starting over.</p>
+        <p className="text-xs text-gray-600 mt-2">Demo companies (cached, work offline). A company that already has a run reopens it instead of starting over.</p>
+        <CompanySearch disabled={starting !== null} onStart={(t) => start(t)} />
         {startError && <div role="alert" className="mt-3 text-sm text-red-800">{startError}</div>}
       </section>
 

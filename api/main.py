@@ -168,6 +168,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="AuditLoop", lifespan=lifespan)
 
 
+@app.get("/companies")
+def companies(q: str = "", limit: int = 8) -> list[dict]:
+    """Search SEC's ticker list by ticker or name, for the dashboard's 'audit any company' box.
+    Read-only, from the cached list; starting a run is still POST /runs."""
+    from edgar.client import search_companies
+    if len(q) > 60:
+        raise HTTPException(status_code=422, detail="query too long (60 characters max)")
+    try:
+        return search_companies(q, max(1, min(limit, 20)))
+    except Exception as e:   # SEC list not cached and no network
+        raise HTTPException(status_code=503, detail=f"company list unavailable: {e}")
+
+
 @app.get("/health")
 def health() -> dict:
     try:
