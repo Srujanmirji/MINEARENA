@@ -52,9 +52,12 @@ interface PendingItem {
   synonymMatch: string;
   defaultCorrectedValue: string;
   defaultReason: string;
+  status: 'pending' | 'approved' | 'corrected' | 'rejected';
+  finalDecision?: string;
+  decisionReason?: string;
 }
 
-const PENDING_ITEMS: PendingItem[] = [
+const INITIAL_ITEMS: PendingItem[] = [
   {
     id: '0000320193-24-000123:operating_cash_flow',
     ticker: 'AAPL',
@@ -107,6 +110,7 @@ const PENDING_ITEMS: PendingItem[] = [
     synonymMatch: 'Label matched synonym list: "Net cash provided by operating activities"',
     defaultCorrectedValue: '118,254',
     defaultReason: 'LLM read the prior-year column; 2024 value matches the source.',
+    status: 'pending',
   },
   {
     id: '0001318605-24-000088:equity',
@@ -154,6 +158,7 @@ const PENDING_ITEMS: PendingItem[] = [
     synonymMatch: 'Label matched synonym list: "Total stockholders\' equity"',
     defaultCorrectedValue: '63,609',
     defaultReason: 'Include noncontrolling interests to satisfy Assets = Liabilities + Equity.',
+    status: 'pending',
   },
   {
     id: '0001045810-25-000010:gross_margin',
@@ -201,6 +206,7 @@ const PENDING_ITEMS: PendingItem[] = [
     synonymMatch: 'Label matched synonym list: "Gross margin"',
     defaultCorrectedValue: '72.7%',
     defaultReason: 'Verified GAAP Gross Profit / Total Revenue from Item 8.',
+    status: 'pending',
   },
   {
     id: '0000789019-24-000034:rnd',
@@ -248,6 +254,7 @@ const PENDING_ITEMS: PendingItem[] = [
     synonymMatch: 'Label matched synonym list: "Research and development"',
     defaultCorrectedValue: '38,642',
     defaultReason: 'Confirmed from Item 7 MD&A disclosure on AI and cloud capital investments.',
+    status: 'pending',
   },
 ];
 
@@ -256,40 +263,16 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
   initialTab = 'review',
 }) => {
   const [activeTab, setActiveTab] = useState<'review' | 'runs' | 'accuracy' | 'audit'>(initialTab);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [pendingItems, setPendingItems] = useState<PendingItem[]>(PENDING_ITEMS);
-  const [correctedVal, setCorrectedVal] = useState(PENDING_ITEMS[0].defaultCorrectedValue);
-  const [reasonVal, setReasonVal] = useState(PENDING_ITEMS[0].defaultReason);
+  const [items, setItems] = useState<PendingItem[]>(INITIAL_ITEMS);
+  const [selectedItemId, setSelectedItemId] = useState<string>(INITIAL_ITEMS[0].id);
+  const [correctedVal, setCorrectedVal] = useState<string>(INITIAL_ITEMS[0].defaultCorrectedValue);
+  const [reasonVal, setReasonVal] = useState<string>(INITIAL_ITEMS[0].defaultReason);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isExiting, setIsExiting] = useState(false);
-  const [meterLoaded, setMeterLoaded] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [isExiting, setIsExiting] = useState<boolean>(false);
+  const [meterLoaded, setMeterLoaded] = useState<boolean>(false);
+  const [chainVerified, setChainVerified] = useState<boolean>(false);
 
-  useEffect(() => {
-    setMeterLoaded(false);
-    const timer = setTimeout(() => {
-      setMeterLoaded(true);
-    }, 120);
-    return () => clearTimeout(timer);
-  }, [currentIndex]);
-
-  const handleClose = () => {
-    if (isExiting) return;
-    setIsExiting(true);
-    setTimeout(() => {
-      onClose();
-    }, 280);
-  };
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isExiting]);
   const [auditLog, setAuditLog] = useState([
     {
       seq: 14,
@@ -325,73 +308,136 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
       hash: '7b41e...12a9',
     },
   ]);
-  const [chainVerified, setChainVerified] = useState(false);
 
-  const currentItem = pendingItems[currentIndex] || pendingItems[0];
+  // Derived active item
+  const pendingList = items.filter((i) => i.status === 'pending');
+  const currentItem = items.find((i) => i.id === selectedItemId) || pendingList[0] || items[0];
+  const pendingCount = pendingList.length;
+  const currentItemNumber = items.findIndex((i) => i.id === currentItem.id) + 1;
+
+  useEffect(() => {
+    if (currentItem) {
+      setCorrectedVal(currentItem.defaultCorrectedValue);
+      setReasonVal(currentItem.defaultReason);
+      setMeterLoaded(false);
+      const timer = setTimeout(() => {
+        setMeterLoaded(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [currentItem.id]);
+
+  const handleClose = () => {
+    if (isExiting) return;
+    setIsExiting(true);
+    setTimeout(() => {
+      onClose();
+    }, 280);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isExiting]);
 
   const handleDecision = (action: 'APPROVE' | 'CORRECT' | 'REJECT') => {
-    if (isSubmitted) return;
+    if (isSubmitted || !currentItem) return;
+
+    if ((action === 'CORRECT' || action === 'REJECT') && !reasonVal.trim()) {
+      alert('Please provide a reason before submitting.');
+      return;
+    }
+
     setIsSubmitted(true);
 
-    const newLogEntry = {
+    const finalVal =
+      action === 'CORRECT'
+        ? `${correctedVal} ${currentItem.unit}`
+        : `${currentItem.extractedValue} ${currentItem.unit}`;
+
+    // Add to audit log
+    const newEntry = {
       seq: auditLog.length + 12,
       time: new Date().toISOString().substring(11, 19) + ' UTC',
       ticker: currentItem.ticker,
       metric: currentItem.metric,
       original: `${currentItem.extractedValue} ${currentItem.unit}`,
-      final: action === 'CORRECT' ? `${correctedVal} ${currentItem.unit}` : `${currentItem.extractedValue} ${currentItem.unit}`,
+      final: finalVal,
       action: action,
       reviewer: 'Sai (P3 — Frontend Lead)',
       hash: Math.random().toString(16).substring(2, 10) + '...' + Math.random().toString(16).substring(2, 6),
     };
 
-    setAuditLog([newLogEntry, ...auditLog]);
+    setAuditLog([newEntry, ...auditLog]);
     setToastMessage(`Decision recorded (${action}). Workflow resumed for ${currentItem.ticker}.`);
 
     setTimeout(() => {
+      // Mark current item as resolved
+      const updated = items.map((it) =>
+        it.id === currentItem.id
+          ? {
+              ...it,
+              status: (action === 'APPROVE'
+                ? 'approved'
+                : action === 'CORRECT'
+                ? 'corrected'
+                : 'rejected') as PendingItem['status'],
+              finalDecision: action,
+              decisionReason: reasonVal,
+            }
+          : it
+      );
+      setItems(updated);
+
+      // Find next pending item
+      const nextPending = updated.find((it) => it.status === 'pending');
+      if (nextPending) {
+        setSelectedItemId(nextPending.id);
+      }
+
       setIsSubmitted(false);
       setToastMessage(null);
-      if (currentIndex < pendingItems.length - 1) {
-        const nextIdx = currentIndex + 1;
-        setCurrentIndex(nextIdx);
-        setCorrectedVal(pendingItems[nextIdx].defaultCorrectedValue);
-        setReasonVal(pendingItems[nextIdx].defaultReason);
-      } else {
-        // Remove item from pending
-        setPendingItems([]);
-      }
-    }, 1200);
+    }, 900);
   };
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex bg-[#F8FAFC] text-gray-900 font-sans antialiased overflow-hidden select-text ${
+      className={`fixed inset-0 z-50 flex bg-[#F8FAFC] text-gray-900 overflow-hidden select-text ${
         isExiting ? 'animate-dashboard-out' : 'animate-dashboard-in'
       }`}
+      style={{
+        fontFamily:
+          'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      }}
     >
       {/* -------------------- LEFT SIDEBAR (Dark Charcoal / Navy) -------------------- */}
       <aside
-        className={`w-56 bg-[#0B0F17] flex flex-col justify-between p-5 text-gray-300 border-r border-gray-800 shrink-0 select-none ${
+        className={`w-64 bg-[#0B0F17] flex flex-col justify-between p-6 text-gray-300 border-r border-gray-800/80 shrink-0 select-none ${
           isExiting ? 'animate-sidebar-out' : 'animate-sidebar-in'
         }`}
       >
         <div>
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-2.5 px-1 py-2 mb-6">
-            <div className="w-6 h-6 rounded-md bg-white text-black flex items-center justify-center font-bold">
-              <CheckSquare className="w-4 h-4 text-black" />
+          {/* Logo & Brand matching sketch */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-7 h-7 rounded-lg border-2 border-white/90 flex items-center justify-center font-bold text-white">
+              <CheckSquare className="w-4 h-4 text-white" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-white">AuditLoop</span>
+            <span className="text-xl font-bold tracking-tight text-white">AuditLoop</span>
           </div>
 
-          {/* Navigation Links - Clean text matching reference screenshot */}
-          <nav className="space-y-1">
+          {/* Navigation Links - clean text matching reference */}
+          <nav className="space-y-1.5">
             <button
               type="button"
               onClick={() => setActiveTab('runs')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === 'runs'
-                  ? 'bg-[#1E293B] text-white'
+                  ? 'bg-[#1E293B] text-white shadow-xs'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -401,16 +447,16 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('review')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === 'review'
                   ? 'bg-[#1E293B] text-white shadow-xs'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
               <span>Review queue</span>
-              {pendingItems.length > 0 && (
-                <span className="bg-[#D97706] text-black font-extrabold text-[11px] px-2 py-0.2 rounded-full">
-                  {pendingItems.length}
+              {pendingCount > 0 && (
+                <span className="bg-[#D97706] text-black font-extrabold text-xs px-2 py-0.5 rounded-full">
+                  {pendingCount}
                 </span>
               )}
             </button>
@@ -418,9 +464,9 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('accuracy')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === 'accuracy'
-                  ? 'bg-[#1E293B] text-white'
+                  ? 'bg-[#1E293B] text-white shadow-xs'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -430,9 +476,9 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('audit')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === 'audit'
-                  ? 'bg-[#1E293B] text-white'
+                  ? 'bg-[#1E293B] text-white shadow-xs'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -442,7 +488,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
         </div>
 
         {/* Footer Parameters & Exit Button */}
-        <div className="pt-4 border-t border-gray-800/80 text-[11px] text-gray-500 space-y-1.5 px-1">
+        <div className="pt-6 border-t border-gray-800/80 text-xs text-gray-500 space-y-1.5">
           <div>Auto-approve at score &ge; 0.85</div>
           <div>YoY flag above 40%</div>
           <div>Source: SEC EDGAR</div>
@@ -450,52 +496,49 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
           <button
             type="button"
             onClick={handleClose}
-            className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors border border-gray-800"
+            className="mt-4 w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors border border-gray-800"
           >
-            <ArrowLeft className="w-3 h-3" />
+            <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to landing page</span>
           </button>
         </div>
       </aside>
 
       {/* -------------------- MAIN CONTENT AREA -------------------- */}
-      <main
-        className="flex-1 overflow-y-auto h-screen bg-[#F8FAFC] py-4 px-6 lg:px-8"
-        style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
-      >
+      <main className="flex-1 overflow-y-auto h-screen bg-[#F8FAFC] p-8 lg:p-10">
         {/* Toast Notification */}
         {toastMessage && (
-          <div className="fixed top-5 right-8 z-50 bg-emerald-900 text-emerald-100 border border-emerald-700 px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2.5 animate-in fade-in slide-in-from-top-4 duration-200">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs font-medium">{toastMessage}</span>
+          <div className="fixed top-6 right-8 z-50 bg-emerald-900 text-emerald-100 border border-emerald-700 px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-200">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            <span className="text-sm font-medium">{toastMessage}</span>
           </div>
         )}
 
-        {/* ===================== TAB 1: REVIEW QUEUE (EXACT SCREENSHOT) ===================== */}
+        {/* ===================== TAB 1: REVIEW QUEUE (EXACT REFERENCE SCREENSHOT) ===================== */}
         {activeTab === 'review' && (
-          <div className="max-w-[1240px] mx-auto">
-            {pendingItems.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 text-center border border-gray-200 shadow-xs mt-6">
-                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle2 className="w-7 h-7" />
+          <div className="max-w-[1200px] mx-auto">
+            {pendingCount === 0 ? (
+              <div className="bg-white rounded-3xl p-16 text-center border border-gray-200 shadow-xs mt-8">
+                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-1">Review Queue Cleared!</h2>
-                <p className="text-gray-600 text-xs max-w-md mx-auto mb-5">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Review Queue Cleared!</h2>
+                <p className="text-gray-600 text-sm max-w-md mx-auto mb-6">
                   All flagged 10-K extractions have been reviewed and committed to the hash-chained audit log.
                 </p>
                 <div className="flex justify-center gap-3">
                   <button
                     onClick={() => {
-                      setPendingItems(PENDING_ITEMS);
-                      setCurrentIndex(0);
+                      setItems(INITIAL_ITEMS);
+                      setSelectedItemId(INITIAL_ITEMS[0].id);
                     }}
-                    className="bg-black text-white text-xs font-semibold px-5 py-2 rounded-full hover:bg-gray-800 transition-colors"
+                    className="bg-black text-white text-sm font-semibold px-6 py-2.5 rounded-full hover:bg-gray-800 transition-colors shadow-xs"
                   >
                     Reset Demo Queue
                   </button>
                   <button
                     onClick={() => setActiveTab('audit')}
-                    className="border border-gray-300 text-gray-800 text-xs font-semibold px-5 py-2 rounded-full hover:bg-gray-50 transition-colors"
+                    className="border border-gray-300 text-gray-800 text-sm font-semibold px-6 py-2.5 rounded-full hover:bg-gray-50 transition-colors"
                   >
                     View Audit Log
                   </button>
@@ -504,89 +547,92 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
             ) : (
               <div>
                 {/* Top Breadcrumb & Status */}
-                <div className="flex items-center justify-between text-xs mb-1.5 animate-cascade-1">
+                <div className="flex items-center justify-between text-sm mb-3 animate-cascade-1">
                   <div className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
-                    Review queue <span className="text-gray-400">/</span> {currentItem.ticker} · {currentItem.metric}
+                    Review queue <span className="text-gray-400">/</span>{' '}
+                    <span className="text-gray-900 font-semibold">
+                      {currentItem.ticker} · {currentItem.metric}
+                    </span>
                   </div>
-                  <div className="text-gray-500 font-medium">
-                    Item {currentIndex + 1} of {pendingItems.length} pending
+                  <div className="text-gray-500 font-medium text-xs">
+                    Item {currentItemNumber} of {items.length} pending
                   </div>
                 </div>
 
                 {/* Header Title with Cascade Animation */}
-                <div className="animate-cascade-1 mb-2.5">
-                  <h1 className="text-2xl lg:text-[26px] font-bold text-gray-900 tracking-tight leading-tight">
+                <div className="animate-cascade-1 mb-5">
+                  <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 tracking-tight">
                     {currentItem.metric} · {currentItem.company}
                   </h1>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-sm text-gray-500 mt-1">
                     {currentItem.filingSubtitle}
                   </p>
                 </div>
 
                 {/* Amber Warning Box: Why this was paused */}
-                <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-3 mb-3 shadow-xs animate-cascade-2 animate-warning-glow">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-4 mb-6 shadow-xs animate-cascade-2 animate-warning-glow">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs font-bold text-amber-900">
+                      <h4 className="text-sm font-bold text-amber-950">
                         {currentItem.pauseReasonTitle}
                       </h4>
-                      <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                      <p className="text-sm text-amber-900 mt-0.5 leading-relaxed">
                         {currentItem.pauseReasonDetails}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Two-Column Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+                {/* Two-Column Layout matching reference screenshot */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   {/* ----------------- LEFT COLUMN: Source evidence (7 cols) ----------------- */}
-                  <div className="lg:col-span-7 bg-white rounded-xl p-4 border border-gray-200/90 shadow-xs animate-card-left">
-                    <h3 className="text-sm font-bold text-gray-900">Source evidence</h3>
-                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2.5">{currentItem.sourceStatement}</p>
+                  <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-gray-200/90 shadow-xs animate-card-left">
+                    <h3 className="text-base font-bold text-gray-900">Source evidence</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 mb-4">{currentItem.sourceStatement}</p>
 
                     {/* Financial Data Table */}
-                    <div className="overflow-x-auto border-t border-b border-gray-100 py-1">
+                    <div className="overflow-x-auto border-t border-b border-gray-100 py-2">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="text-[11px] font-semibold text-gray-600 border-b border-gray-100">
-                            <th className="py-2 pr-3">Years ended</th>
-                            <th className="py-2 px-2 text-right">Sep 28,<br />2024</th>
-                            <th className="py-2 px-2 text-right">Sep 30,<br />2023</th>
-                            <th className="py-2 pl-2 text-right">Sep 24,<br />2022</th>
+                          <tr className="text-xs font-semibold text-gray-600 border-b border-gray-100">
+                            <th className="py-2.5 pr-4">Years ended</th>
+                            <th className="py-2.5 px-3 text-right">Sep 28,<br />2024</th>
+                            <th className="py-2.5 px-3 text-right">Sep 30,<br />2023</th>
+                            <th className="py-2.5 pl-3 text-right">Sep 24,<br />2022</th>
                           </tr>
                         </thead>
-                        <tbody className="text-xs text-gray-800 divide-y divide-gray-50 font-normal">
+                        <tbody className="text-sm text-gray-800 divide-y divide-gray-50 font-normal">
                           {currentItem.sourceRows.map((row, idx) => (
                             <tr
                               key={idx}
-                              className={row.isMuted ? 'text-[11px] text-gray-400 italic bg-gray-50/50' : ''}
+                              className={row.isMuted ? 'text-xs text-gray-400 italic bg-gray-50/50' : ''}
                             >
-                              <td className="py-2 pr-3 font-medium text-gray-900">
+                              <td className="py-3 pr-4 font-medium text-gray-900">
                                 {row.label}
                               </td>
 
                               {row.targetRow ? (
                                 <>
-                                  <td className="py-2 px-1 text-right">
-                                    <span className="inline-block border-2 border-blue-600 bg-blue-50/40 text-blue-950 font-bold px-2 py-0.5 rounded-md text-xs">
+                                  <td className="py-3 px-2 text-right">
+                                    <span className="inline-block border-2 border-blue-600 bg-blue-50/30 text-gray-900 font-bold px-2.5 py-1 rounded-md text-sm">
                                       {row.col1}
                                     </span>
                                   </td>
-                                  <td className="py-2 px-1 text-right">
-                                    <span className="inline-block border-2 border-dashed border-amber-500 bg-amber-50/40 text-amber-950 font-bold px-2 py-0.5 rounded-md text-xs">
+                                  <td className="py-3 px-2 text-right">
+                                    <span className="inline-block border-2 border-dashed border-amber-500 bg-amber-50/30 text-gray-900 font-bold px-2.5 py-1 rounded-md text-sm">
                                       {row.col2}
                                     </span>
                                   </td>
-                                  <td className="py-2 pl-2 text-right font-medium text-gray-600">
+                                  <td className="py-3 pl-3 text-right font-medium text-gray-600">
                                     {row.col3}
                                   </td>
                                 </>
                               ) : (
                                 <>
-                                  <td className="py-1.5 px-2 text-right text-gray-700">{row.col1}</td>
-                                  <td className="py-1.5 px-2 text-right text-gray-700">{row.col2}</td>
-                                  <td className="py-1.5 pl-2 text-right text-gray-700">{row.col3}</td>
+                                  <td className="py-2.5 px-3 text-right text-gray-700">{row.col1}</td>
+                                  <td className="py-2.5 px-3 text-right text-gray-700">{row.col2}</td>
+                                  <td className="py-2.5 pl-3 text-right text-gray-700">{row.col3}</td>
                                 </>
                               )}
                             </tr>
@@ -596,34 +642,34 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                     </div>
 
                     {/* Table Picked Legend */}
-                    <div className="flex items-center gap-5 mt-3 text-[11px] font-medium text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 border-2 border-blue-600 rounded-xs bg-blue-50"></span>
+                    <div className="flex items-center gap-6 mt-4 text-xs font-medium text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <span className="w-3.5 h-3.5 border-2 border-blue-600 rounded-xs bg-blue-50"></span>
                         <span>Table parser picked this</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 border-2 border-dashed border-amber-500 rounded-xs bg-amber-50"></span>
+                      <div className="flex items-center gap-2">
+                        <span className="w-3.5 h-3.5 border-2 border-dashed border-amber-500 rounded-xs bg-amber-50"></span>
                         <span>LLM picked this</span>
                       </div>
                     </div>
 
                     {/* Synonym Match Subtext */}
-                    <div className="mt-2.5 pt-2 border-t border-gray-100 text-[10px] text-gray-400">
+                    <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-400">
                       {currentItem.synonymMatch}
                     </div>
                   </div>
 
                   {/* ----------------- RIGHT COLUMN: Extracted Value + Decision (5 cols) ----------------- */}
-                  <div className="lg:col-span-5 space-y-2.5 animate-card-right">
+                  <div className="lg:col-span-5 space-y-6 animate-card-right">
                     {/* Card 1: Extracted value */}
-                    <div className="bg-white rounded-xl p-3.5 border border-gray-200/90 shadow-xs">
+                    <div className="bg-white rounded-2xl p-6 border border-gray-200/90 shadow-xs">
                       <div className="text-xs font-semibold text-gray-800">
                         Extracted value
                       </div>
 
                       {/* Big Value + Unit */}
-                      <div className="mt-1 flex items-baseline gap-1.5">
-                        <span className="text-2xl lg:text-[28px] font-extrabold text-gray-900 tracking-tight">
+                      <div className="mt-2 flex items-baseline gap-2">
+                        <span className="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight">
                           {currentItem.extractedValue}
                         </span>
                         <span className="text-xs font-semibold text-gray-500">
@@ -632,7 +678,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                       </div>
 
                       {/* Period & Type Metadata */}
-                      <div className="grid grid-cols-2 gap-2 mt-1.5 text-[11px] border-b border-gray-100 pb-2">
+                      <div className="grid grid-cols-2 gap-4 mt-3 text-xs border-b border-gray-100 pb-3">
                         <div>
                           <div className="text-gray-400">Period</div>
                           <div className="font-semibold text-gray-800 mt-0.5">{currentItem.period}</div>
@@ -644,8 +690,8 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                       </div>
 
                       {/* Confidence Meter */}
-                      <div className="mt-2">
-                        <div className="flex items-center justify-between text-[11px] mb-1 font-medium">
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-xs mb-1.5 font-medium">
                           <span className="text-gray-900 font-bold">
                             Confidence {currentItem.confidence.toFixed(2)}
                           </span>
@@ -653,7 +699,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                         </div>
 
                         {/* Progress Bar with Tick Mark & Fluid Animation */}
-                        <div className="relative h-2 w-full bg-gray-100 rounded-full overflow-hidden mb-2">
+                        <div className="relative h-2.5 w-full bg-gray-100 rounded-full overflow-hidden mb-3">
                           <div
                             className="h-full bg-amber-500 rounded-full transition-all duration-700 ease-out"
                             style={{ width: meterLoaded ? `${currentItem.confidence * 100}%` : '0%' }}
@@ -667,9 +713,15 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                         </div>
 
                         {/* 4 Score Badges (Agreement, Label, Period, Checks) */}
-                        <div className="grid grid-cols-4 gap-1.5 text-center text-xs mt-1.5">
-                          <div className="bg-slate-50 border border-slate-100 rounded-md py-1 px-0.5">
-                            <div className="text-gray-500 text-[10px]">Agreement</div>
+                        <div className="grid grid-cols-4 gap-2 text-center text-xs mt-2">
+                          <div
+                            className={`border rounded-lg p-2 ${
+                              currentItem.signals.agreement.failed
+                                ? 'bg-rose-50 border-rose-100'
+                                : 'bg-slate-50 border-slate-100'
+                            }`}
+                          >
+                            <div className="text-gray-500 text-[11px]">Agreement</div>
                             <div
                               className={`font-bold text-xs mt-0.5 ${
                                 currentItem.signals.agreement.failed ? 'text-red-500' : 'text-gray-900'
@@ -679,22 +731,22 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                             </div>
                           </div>
 
-                          <div className="bg-slate-50 border border-slate-100 rounded-md py-1 px-0.5">
-                            <div className="text-gray-500 text-[10px]">Label</div>
+                          <div className="bg-slate-50 border border-slate-100 rounded-lg p-2">
+                            <div className="text-gray-500 text-[11px]">Label</div>
                             <div className="font-bold text-xs text-gray-900 mt-0.5">
                               {currentItem.signals.label.score.toFixed(2)}
                             </div>
                           </div>
 
-                          <div className="bg-slate-50 border border-slate-100 rounded-md py-1 px-0.5">
-                            <div className="text-gray-500 text-[10px]">Period</div>
+                          <div className="bg-slate-50 border border-slate-100 rounded-lg p-2">
+                            <div className="text-gray-500 text-[11px]">Period</div>
                             <div className="font-bold text-xs text-gray-900 mt-0.5">
                               {currentItem.signals.period.score.toFixed(2)}
                             </div>
                           </div>
 
-                          <div className="bg-slate-50 border border-slate-100 rounded-md py-1 px-0.5">
-                            <div className="text-gray-500 text-[10px]">Checks</div>
+                          <div className="bg-slate-50 border border-slate-100 rounded-lg p-2">
+                            <div className="text-gray-500 text-[11px]">Checks</div>
                             <div
                               className={`font-bold text-xs mt-0.5 ${
                                 currentItem.signals.checks.failed ? 'text-amber-600' : 'text-gray-900'
@@ -707,86 +759,86 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                       </div>
 
                       {/* Side-by-Side Comparison Boxes (Parser vs LLM) */}
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        <div className="border border-blue-500/80 bg-blue-50/20 rounded-lg p-2">
-                          <div className="text-[10px] text-gray-500">Table parser</div>
-                          <div className="text-sm font-bold text-gray-900 mt-0.5">
+                      <div className="grid grid-cols-2 gap-3 mt-4">
+                        <div className="border border-blue-500/80 bg-blue-50/20 rounded-xl p-3">
+                          <div className="text-xs text-gray-500">Table parser</div>
+                          <div className="text-base font-bold text-gray-900 mt-0.5">
                             {currentItem.parserValue}
                           </div>
-                          <div className="text-[10px] text-gray-400 mt-0.5">
+                          <div className="text-[11px] text-gray-400 mt-0.5">
                             {currentItem.parserColumn}
                           </div>
                         </div>
 
-                        <div className="border border-dashed border-amber-500 bg-amber-50/20 rounded-lg p-2">
-                          <div className="text-[10px] text-gray-500">LLM</div>
-                          <div className="text-sm font-bold text-gray-900 mt-0.5">
+                        <div className="border border-dashed border-amber-500 bg-amber-50/20 rounded-xl p-3">
+                          <div className="text-xs text-gray-500">LLM</div>
+                          <div className="text-base font-bold text-gray-900 mt-0.5">
                             {currentItem.llmValue}
                           </div>
-                          <div className="text-[10px] text-gray-400 mt-0.5">
+                          <div className="text-[11px] text-gray-400 mt-0.5">
                             {currentItem.llmColumn}
                           </div>
                         </div>
                       </div>
 
                       {/* Validation Checks */}
-                      <div className="mt-2 pt-1.5 border-t border-gray-100 space-y-1 text-xs">
+                      <div className="mt-4 pt-3 border-t border-gray-100 space-y-1.5 text-xs">
                         {currentItem.validations.map((v, i) => (
-                          <div key={i} className="flex items-center gap-1.5">
+                          <div key={i} className="flex items-center gap-2">
                             <span
-                              className={`px-1.5 py-0.2 rounded font-bold text-[10px] ${
+                              className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${
                                 v.status === 'pass'
-                                  ? 'bg-emerald-100/90 text-emerald-800'
-                                  : 'bg-rose-100/90 text-rose-800'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
                               }`}
                             >
                               {v.status === 'pass' ? 'Pass' : 'Fail'}
                             </span>
-                            <span className="text-gray-700 font-medium text-[11px]">{v.text}</span>
+                            <span className="text-gray-700 font-medium text-xs">{v.text}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {/* Card 2: Your decision */}
-                    <div className="bg-white rounded-xl p-3.5 border border-gray-200/90 shadow-xs">
-                      <h3 className="text-xs font-bold text-gray-900">Your decision</h3>
+                    <div className="bg-white rounded-2xl p-6 border border-gray-200/90 shadow-xs">
+                      <h3 className="text-base font-bold text-gray-900">Your decision</h3>
 
                       {/* Corrected Value Input */}
-                      <div className="mt-2">
-                        <label className="block text-[11px] font-semibold text-gray-600 mb-1">
+                      <div className="mt-3">
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                           Corrected value (only for Correct)
                         </label>
                         <input
                           type="text"
                           value={correctedVal}
                           onChange={(e) => setCorrectedVal(e.target.value)}
-                          className="w-full px-2.5 py-1 text-xs font-semibold text-gray-900 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black"
+                          className="w-full px-3 py-2 text-sm font-semibold text-gray-900 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black"
                           placeholder="e.g. 118,254"
                         />
                       </div>
 
                       {/* Reason Textarea */}
-                      <div className="mt-1.5">
-                        <label className="block text-[11px] font-semibold text-gray-600 mb-1">
+                      <div className="mt-3">
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                           Reason (required for Correct and Reject)
                         </label>
                         <textarea
                           rows={2}
                           value={reasonVal}
                           onChange={(e) => setReasonVal(e.target.value)}
-                          className="w-full h-11 p-2 text-xs text-gray-800 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black leading-tight resize-none"
+                          className="w-full h-16 p-2.5 text-xs text-gray-800 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black leading-relaxed resize-none"
                           placeholder="Provide audit rationale..."
                         />
                       </div>
 
                       {/* Action Buttons (Approve, Correct, Reject) */}
-                      <div className="grid grid-cols-3 gap-2 mt-2.5">
+                      <div className="grid grid-cols-3 gap-3 mt-4">
                         <button
                           type="button"
                           disabled={isSubmitted}
                           onClick={() => handleDecision('APPROVE')}
-                          className="bg-[#1B6E44] hover:bg-[#165a37] text-white text-xs font-semibold py-1.5 rounded-lg transition-colors shadow-xs disabled:opacity-50"
+                          className="bg-[#1B6E44] hover:bg-[#165a37] text-white text-sm font-semibold py-2.5 rounded-lg transition-colors shadow-xs disabled:opacity-50"
                         >
                           Approve
                         </button>
@@ -795,7 +847,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                           type="button"
                           disabled={isSubmitted || !reasonVal.trim()}
                           onClick={() => handleDecision('CORRECT')}
-                          className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-400 text-xs font-semibold py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                          className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-400 text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50"
                         >
                           Correct
                         </button>
@@ -804,7 +856,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                           type="button"
                           disabled={isSubmitted || !reasonVal.trim()}
                           onClick={() => handleDecision('REJECT')}
-                          className="bg-white hover:bg-red-50 text-red-600 border border-red-300 text-xs font-semibold py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                          className="bg-white hover:bg-rose-50 text-rose-600 border border-rose-300 text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50"
                         >
                           Reject
                         </button>
@@ -819,7 +871,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
 
         {/* ===================== TAB 2: RUNS ===================== */}
         {activeTab === 'runs' && (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-[1200px] mx-auto">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Filing Extraction Runs</h1>
             <p className="text-sm text-gray-500 mb-6">
               Active pipelines tracking SEC EDGAR Form 10-K ingestions and human review pause states.
@@ -836,11 +888,13 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
               </div>
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
                 <div className="text-xs text-gray-500 font-medium">Escalated to Human</div>
-                <div className="text-3xl font-bold text-amber-600 mt-1">4 items</div>
+                <div className="text-3xl font-bold text-amber-600 mt-1">{pendingCount} items</div>
               </div>
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
                 <div className="text-xs text-gray-500 font-medium">Status</div>
-                <div className="text-3xl font-bold text-blue-600 mt-1">PAUSED</div>
+                <div className="text-3xl font-bold text-blue-600 mt-1">
+                  {pendingCount > 0 ? 'PAUSED' : 'ALL CLEAR'}
+                </div>
               </div>
             </div>
 
@@ -857,81 +911,40 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="py-3.5 px-4 font-mono text-xs font-semibold">run_20261112_01</td>
-                    <td className="py-3.5 px-4 font-medium text-gray-900">Apple Inc. (AAPL)</td>
-                    <td className="py-3.5 px-4 text-gray-600">10-K FY2024</td>
-                    <td className="py-3.5 px-4">8/8 (7 auto, 1 paused)</td>
-                    <td className="py-3.5 px-4">
-                      <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-medium">
-                        PAUSED (Review)
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => {
-                          setCurrentIndex(0);
-                          setActiveTab('review');
-                        }}
-                        className="text-blue-600 hover:text-blue-800 font-medium text-xs"
-                      >
-                        Inspect item &rarr;
-                      </button>
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="py-3.5 px-4 font-mono text-xs font-semibold">run_20261112_02</td>
-                    <td className="py-3.5 px-4 font-medium text-gray-900">Tesla, Inc. (TSLA)</td>
-                    <td className="py-3.5 px-4 text-gray-600">10-K FY2024</td>
-                    <td className="py-3.5 px-4">8/8 (7 auto, 1 paused)</td>
-                    <td className="py-3.5 px-4">
-                      <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-medium">
-                        PAUSED (Review)
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => {
-                          setCurrentIndex(1);
-                          setActiveTab('review');
-                        }}
-                        className="text-blue-600 hover:text-blue-800 font-medium text-xs"
-                      >
-                        Inspect item &rarr;
-                      </button>
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="py-3.5 px-4 font-mono text-xs font-semibold">run_20261112_03</td>
-                    <td className="py-3.5 px-4 font-medium text-gray-900">NVIDIA Corp. (NVDA)</td>
-                    <td className="py-3.5 px-4 text-gray-600">10-K FY2025</td>
-                    <td className="py-3.5 px-4">8/8 (7 auto, 1 paused)</td>
-                    <td className="py-3.5 px-4">
-                      <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">
-                        AUTO-VERIFIED
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <span className="text-gray-400 text-xs">Completed</span>
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="py-3.5 px-4 font-mono text-xs font-semibold">run_20261112_04</td>
-                    <td className="py-3.5 px-4 font-medium text-gray-900">Microsoft Corp. (MSFT)</td>
-                    <td className="py-3.5 px-4 text-gray-600">10-K FY2024</td>
-                    <td className="py-3.5 px-4">8/8 (7 auto, 1 paused)</td>
-                    <td className="py-3.5 px-4">
-                      <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">
-                        AUTO-VERIFIED
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <span className="text-gray-400 text-xs">Completed</span>
-                    </td>
-                  </tr>
+                  {items.map((it, idx) => (
+                    <tr key={it.id} className="hover:bg-gray-50/50">
+                      <td className="py-3.5 px-4 font-mono text-xs font-semibold">
+                        run_20261112_0{idx + 1}
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-gray-900">
+                        {it.company} ({it.ticker})
+                      </td>
+                      <td className="py-3.5 px-4 text-gray-600">10-K FY2024</td>
+                      <td className="py-3.5 px-4">8/8 (7 auto, 1 {it.status})</td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                            it.status === 'pending'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {it.status === 'pending' ? 'PAUSED (Review)' : 'RESOLVED'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => {
+                            setSelectedItemId(it.id);
+                            setActiveTab('review');
+                          }}
+                          className="text-blue-600 hover:text-blue-800 font-medium text-xs"
+                        >
+                          Inspect item &rarr;
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -940,7 +953,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
 
         {/* ===================== TAB 3: ACCURACY REPORT ===================== */}
         {activeTab === 'accuracy' && (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-[1200px] mx-auto">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Ground-Truth Accuracy Benchmark</h1>
             <p className="text-sm text-gray-500 mb-6">
               Evaluating AuditLoop dual-pass extraction against verified SEC EDGAR XBRL facts.
@@ -1000,7 +1013,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
 
         {/* ===================== TAB 4: AUDIT LOG ===================== */}
         {activeTab === 'audit' && (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-[1200px] mx-auto">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Cryptographic Audit Trail</h1>
@@ -1022,7 +1035,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 <div className="text-xs text-emerald-900 font-medium">
-                  <strong>Chain intact · 15 entries verified.</strong> All blocks linked via prev_hash. Database triggers enforce append-only immutability.
+                  <strong>Chain intact · {auditLog.length} entries verified.</strong> All blocks linked via prev_hash. Database triggers enforce append-only immutability.
                 </div>
               </div>
             )}
@@ -1059,7 +1072,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                               : log.action === 'CORRECT'
                               ? 'bg-blue-100 text-blue-800'
                               : log.action === 'REJECT'
-                              ? 'bg-red-100 text-red-800'
+                              ? 'bg-rose-100 text-rose-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}
                         >
