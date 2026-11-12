@@ -31,4 +31,5 @@ declare module 'lucide-react' {
   export const AlertTriangle: Icon;
   export const ArrowLeft: Icon;
   export const Clock: Icon;
+  export const Zap: Icon;
 }
