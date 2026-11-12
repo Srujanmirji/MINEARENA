@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import re
+from datetime import date, timedelta
 from typing import Any
 
 import pandas as pd
@@ -20,6 +21,20 @@ from extract.llm_extractor import extract_with_llm
 from extract.table_parser import _clean_num, label_allowed, parse_statement_table
 
 _doc_cache: dict[str, list[str]] = {}
+
+
+def _year_before(period_end: str) -> str | None:
+    """Start of a fiscal year ending on period_end: one calendar year earlier, plus one day.
+    52/53-week filers (e.g. Apple) start a day or two off this; verify/ only checks ~1 year ± 10 days."""
+    try:
+        end = date.fromisoformat(period_end)
+    except (TypeError, ValueError):
+        return None
+    try:
+        prior = end.replace(year=end.year - 1)
+    except ValueError:  # Feb 29 -> Feb 28 of the prior year
+        prior = end.replace(year=end.year - 1, day=28)
+    return (prior + timedelta(days=1)).isoformat()
 
 
 def get_table_html(meta: dict, table_index: int) -> str:
@@ -239,14 +254,7 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
         if st_name == "balance_sheet":
             period_start = None
         else:
-            if ticker == "AAPL" and period_end == "2024-09-28":
-                period_start = "2023-10-01"
-            else:
-                try:
-                    y = int(period_end[:4])
-                    period_start = f"{y - 1}-{period_end[5:]}"
-                except Exception:
-                    period_start = None
+            period_start = _year_before(period_end)
 
         col_hdr = item["column_header"] or (f"{period_end}" if period_end else "")
 
@@ -304,3 +312,16 @@ if __name__ == "__main__":
         print(f"  {v.metric:<20} -> value: {v.value:<10} (prior: {v.prior_value}) scale={v.scale} label='{v.row_label}'")
     for s in segments:
         print(f"  Segment: {s['segment']} -> ${s['value']:,.0f}")
+
+    # Regression (tasks/Mayur.md): AAPL FY2024 must equal the 9 REAL rows in data/mock_values.json.
+    import json
+
+    from core.config import MOCK_VALUES
+
+    mock = {r["metric"]: r for r in json.loads(MOCK_VALUES.read_text()) if r["ticker"] == "AAPL"}
+    for v in values:
+        m = mock[v.metric]
+        assert (v.value, v.prior_value, v.scale) == (m["value"], m["prior_value"], m["scale"]), (v.metric, v.value, m["value"])
+    assert sum(s["value"] for s in segments) == mock["revenue"]["value"], "segments must sum to revenue"
+    assert _year_before("2025-12-31") == "2025-01-01" and _year_before("2024-02-29") == "2023-03-01"
+    print("[extractor] Regression PASSED: AAPL FY2024 = the 9 real mock rows; segments sum to revenue")

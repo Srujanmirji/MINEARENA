@@ -107,7 +107,7 @@ If the primary-document locator fails for 2 or more companies, switch `locate.py
 - [x] Bonus B-4 data: fill `history` = `{period_end: value}` for **every** year column the statement shows (income + cash flow usually 3 years, balance sheet 2). Sai charts it
 
 ### 7:30 AM onward — Freeze
-- [x] Bug fixes only; rehearse the answers to "why not use XBRL directly?" and "how do you stop hallucinated numbers?" (`docs/DEMO.md`)
+- [ ] Bug fixes only; rehearse the answers to "why not use XBRL directly?" and "how do you stop hallucinated numbers?" (`docs/DEMO.md`)
 
 ---
 
