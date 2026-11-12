@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "Total revenues",
+      "current_value": 713163,
+      "prior_value": 680985,
+      "column_header": "2026",
+      "snippet": "Total revenues | 713,163 | 680,985 | 648,125"
+    },
+    {
+      "metric": "operating_income",
+      "row_label": "Operating income",
+      "current_value": 29825,
+      "prior_value": 29348,
+      "column_header": "2026",
+      "snippet": "Operating income | 29,825 | 29,348 | 27,012"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "Consolidated net income attributable to Walmart",
+      "current_value": 21893,
+      "prior_value": 19436,
+      "column_header": "2026",
+      "snippet": "Consolidated net income attributable to Walmart | $ | 21,893 | $ | 19,436 | $ | 15,511"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Diluted net income per common share attributable to Walmart",
+      "current_value": 2.73,
+      "prior_value": 2.41,
+      "column_header": "2026",
+      "snippet": "Diluted net income per common share attributable to Walmart | 2.73 | 2.41 | 1.91"
+    }
+  ]
+}
