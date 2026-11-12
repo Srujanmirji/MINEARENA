@@ -1,6 +1,6 @@
 """LangGraph wiring (ARCHITECTURE §3).
 
-fetch_filing → locate_statements → extract → validate → score_confidence → route → auto_approve
+fetch_filing → locate_statements → extract → score_confidence → validate → route → auto_approve
   → (pending?) human_review ↔ apply_decision → verify_vs_xbrl → build_report → END
 
 The report node is called "build_report" because LangGraph forbids a node named like a
@@ -24,8 +24,8 @@ def build_graph() -> StateGraph:
     g.add_node("fetch_filing", nodes.fetch_filing)
     g.add_node("locate_statements", nodes.locate_statements_node)
     g.add_node("extract", nodes.extract)
-    g.add_node("validate", nodes.validate)
     g.add_node("score_confidence", nodes.score_confidence)
+    g.add_node("validate", nodes.validate)
     g.add_node("route", nodes.route)
     g.add_node("auto_approve", nodes.auto_approve)
     g.add_node("human_review", nodes.human_review)
@@ -36,9 +36,9 @@ def build_graph() -> StateGraph:
     g.add_edge(START, "fetch_filing")
     g.add_edge("fetch_filing", "locate_statements")
     g.add_edge("locate_statements", "extract")
-    g.add_edge("extract", "validate")
-    g.add_edge("validate", "score_confidence")
-    g.add_edge("score_confidence", "route")
+    g.add_edge("extract", "score_confidence")      # PS Step 3: did we read it right?
+    g.add_edge("score_confidence", "validate")     # PS Step 4: does it make sense?
+    g.add_edge("validate", "route")                # PS Step 5: automated decision
     g.add_edge("route", "auto_approve")
     g.add_conditional_edges("auto_approve", nodes.has_pending, ["human_review", "verify_vs_xbrl"])
     g.add_edge("human_review", "apply_decision")

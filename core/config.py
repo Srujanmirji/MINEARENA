@@ -30,9 +30,10 @@ SEC_USER_AGENT: str = os.getenv("SEC_USER_AGENT", "AuditLoop Team contact@exampl
 LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini")
 API_BASE: str = os.getenv("API_BASE", "http://localhost:8000")
 
-# C = 0.35·A + 0.25·L + 0.20·P + 0.20·V  (ARCHITECTURE §7)
-WEIGHTS: dict[str, float] = {"agreement": 0.35, "label": 0.25, "period_unit": 0.20, "validation": 0.20}
+# C = 0.45·A + 0.30·L + 0.25·P  (ARCHITECTURE §6) — validation is a separate step, not a term
+WEIGHTS: dict[str, float] = {"agreement": 0.45, "label": 0.30, "period_unit": 0.25}
 DERIVED_CAP: float = 0.75
+LABEL_FLOOR: float = 0.80   # auto-approve also needs label match L >= 0.80 (ARCHITECTURE §7)
 
 TICKERS: list[str] = ["AAPL", "MSFT", "NVDA", "WMT", "TSLA"]
 

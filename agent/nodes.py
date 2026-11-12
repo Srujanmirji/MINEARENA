@@ -98,15 +98,14 @@ def _stub_confidence(v: dict, period_end: str) -> tuple[float, dict]:
     """Rough stand-in for scoring.confidence until Srujan's module lands."""
     from rapidfuzz import fuzz
     if v.get("value") is None:
-        return 0.0, {"agreement": 0.0, "label": 0.0, "period_unit": 0.0, "validation": 0.0}
+        return 0.0, {"agreement": 0.0, "label": 0.0, "period_unit": 0.0}
     alt = v.get("alt_value")
     agreement = 0.5 if alt is None else (1.0 if abs(v["value"] - alt) <= 1 else 0.0)
-    label = max((fuzz.token_set_ratio(v.get("row_label", "").lower(), s) / 100
+    # fuzz.ratio, NOT token_set_ratio (that one scores long, wrong labels as 100)
+    label = max((fuzz.ratio(v.get("row_label", "").lower(), s) / 100
                  for s in settings.SYNONYMS[v["metric"]]), default=0.0)
     period_unit = (0.5 if v.get("period_end") == period_end else 0.0) + (0.5 if v.get("scale") else 0.0)
-    failed = any(c.get("status") == "failed" for c in v.get("validation", []))
-    signals = {"agreement": agreement, "label": round(label, 3), "period_unit": period_unit,
-               "validation": 0.0 if failed else 1.0}
+    signals = {"agreement": agreement, "label": round(label, 3), "period_unit": period_unit}
     c = sum(settings.WEIGHTS[k] * signals[k] for k in settings.WEIGHTS)
     if v.get("is_derived"):
         c = min(c, settings.DERIVED_CAP)
@@ -197,7 +196,9 @@ def route(state: AuditState) -> dict:
             # ARCHITECTURE §7: ANY failed check pauses, whatever the threshold.
             # Severity only changes the wording: hard = "possible error", soft = "anomaly".
             failed = [c for c in v.get("validation", []) if c.get("status") == "failed"]
-            if v.get("value") is not None and v["confidence"] >= threshold and not failed:
+            label = v.get("signals", {}).get("label", 0.0)
+            if (v.get("value") is not None and v["confidence"] >= threshold and not failed
+                    and label >= settings.LABEL_FLOOR):
                 values.append({**v, "status": "auto_approved", "escalation_reason": None})
             else:
                 if v.get("value") is None:
@@ -207,8 +208,10 @@ def route(state: AuditState) -> dict:
                         f"{'possible error' if c.get('severity') == 'hard' else 'anomaly'}: "
                         f"{c.get('check', 'check')} {c.get('detail', '')}".strip()
                         for c in failed)
-                else:
+                elif v["confidence"] < threshold:
                     reason = f"confidence {v['confidence']:.2f} < {threshold:.2f}"
+                else:
+                    reason = f"label match {label:.2f} < {settings.LABEL_FLOOR:.2f}"
                 values.append({**v, "status": "escalated", "escalation_reason": reason})
                 pending.append(v["id"])
     print(f"[nodes] route -> {len(values) - len(pending)} clean, {len(pending)} pending")
