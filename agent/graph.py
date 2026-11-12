@@ -48,6 +48,15 @@ def build_graph() -> StateGraph:
     return g
 
 
+def list_checkpoint_threads() -> list[str]:
+    """Every thread_id with at least one checkpoint (includes runs that never reached extract)."""
+    get_graph()
+    try:
+        return [r[0] for r in _conn.execute("SELECT DISTINCT thread_id FROM checkpoints")]
+    except sqlite3.OperationalError:   # table not created until the first checkpoint
+        return []
+
+
 def get_graph():
     """Compiled graph with a long-lived SqliteSaver (one connection for the process)."""
     global _compiled, _conn

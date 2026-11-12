@@ -1,20 +1,25 @@
 """AuditLoop API (docs/API.md).
 
-v1: POST /runs, GET /runs/{thread_id}, GET /pending, POST /runs/{thread_id}/decision, GET /health.
+Runs: POST /runs, GET /runs, GET /runs/{thread_id}, GET /runs/{thread_id}/source/{value_id}
+Review: GET /pending, POST /runs/{thread_id}/decision
+Data: GET /values, GET /validations, GET/PUT /config, GET /audit, GET /audit/verify, GET /health
 
 Run status is always derived from the LangGraph checkpoint (graph.get_state), never from
 memory alone, so a killed-and-restarted server shows the same paused item.
 """
+import re
 import threading
 from contextlib import asynccontextmanager
 from typing import Literal
+
+from bs4 import BeautifulSoup
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from langgraph.types import Command
 from pydantic import BaseModel, model_validator
 
 from agent import nodes
-from agent.graph import get_graph
+from agent.graph import get_graph, list_checkpoint_threads
 from core import config, db
 
 # In-memory only: which threads have a job running right now, and the last error per thread.
@@ -100,7 +105,8 @@ def _steps_done(thread_id: str) -> list[str]:
 
 
 def _known_threads() -> list[str]:
-    return sorted(set(db.list_thread_ids()) | ACTIVE | set(ERRORS))
+    """Rebuilt from app.db AND checkpoints.db, so it survives a restart (startup recovery)."""
+    return sorted(set(db.list_thread_ids()) | set(list_checkpoint_threads()) | ACTIVE | set(ERRORS))
 
 
 def _paused_threads() -> list[str]:
@@ -127,7 +133,11 @@ def _run_graph(thread_id: str, ticker: str) -> None:
 async def lifespan(app: FastAPI):
     db.init_db()
     get_graph()   # opens the long-lived checkpoints.db connection
-    print(f"[api] startup: paused runs = {_paused_threads()}")
+    # Startup recovery: every known thread's status comes from its checkpoint.
+    by_status: dict[str, list[str]] = {}
+    for tid in _known_threads():
+        by_status.setdefault(_status(tid, _snapshot(tid))[0], []).append(tid)
+    print(f"[api] startup recovery: {by_status or 'no runs yet'}")
     yield
 
 
@@ -262,3 +272,155 @@ def decide(thread_id: str, body: DecisionIn) -> dict:
         ERRORS.pop(thread_id, None)
         _resume(thread_id, decision)
         return _after(thread_id, duplicate=False)
+
+
+# ---------- hardening: lists, data, config, audit, source evidence ----------
+
+class ConfigIn(BaseModel):
+    threshold: float | None = None
+    yoy_threshold: float | None = None
+
+
+HUMAN = ("approved", "corrected", "rejected")
+
+
+@app.get("/runs")
+def list_runs() -> list[dict]:
+    out = []
+    for thread_id in _known_threads():
+        snap = _snapshot(thread_id)
+        status, error = _status(thread_id, snap)
+        state = snap.values or {}
+        values = db.get_values(thread_id=thread_id)
+        statuses = [v["status"] for v in values]
+        ticker = state.get("ticker") or (values[0]["ticker"] if values else thread_id.split("-")[0])
+        out.append({
+            "thread_id": thread_id, "ticker": ticker, "status": status,
+            "n_values": len(values),
+            "n_pending": len(state.get("pending", [])) if status == "paused" else 0,
+            "n_auto": statuses.count("auto_approved"),
+            "n_reviewed": sum(s in HUMAN for s in statuses),
+            "error": error,
+        })
+    return out
+
+
+@app.get("/values")
+def list_values(ticker: str | None = None, thread_id: str | None = None) -> list[dict]:
+    return db.get_values(thread_id=thread_id, ticker=ticker)
+
+
+@app.get("/validations")
+def list_validations(ticker: str | None = None) -> list[dict]:
+    """One row per check per filing. Filing-wide checks (A=L+E, segment sum) sit on several
+    values; they are listed once."""
+    out, seen = [], set()
+    for v in db.get_values(ticker=ticker):
+        for c in v.get("validation") or []:
+            key = (v["thread_id"], c.get("check"), c.get("detail"))
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({"ticker": v["ticker"], "thread_id": v["thread_id"], "metric": v["metric"],
+                        "check": c.get("check"), "severity": c.get("severity"),
+                        "status": c.get("status"), "detail": c.get("detail")})
+    return out
+
+
+def _config_out() -> dict:
+    return {"threshold": float(db.get_config("threshold", config.THRESHOLD)),
+            "yoy_threshold": float(db.get_config("yoy_threshold", config.YOY_THRESHOLD)),
+            "applies_to": "new runs only"}
+
+
+@app.get("/config")
+def read_config() -> dict:
+    return _config_out()
+
+
+@app.put("/config")
+def update_config(body: ConfigIn) -> dict:
+    changes = body.model_dump(exclude_none=True)
+    if "threshold" in changes and not 0 < changes["threshold"] <= 1:
+        raise HTTPException(status_code=422, detail="threshold must be in (0, 1]")
+    if "yoy_threshold" in changes and not 0 < changes["yoy_threshold"] <= 10:
+        raise HTTPException(status_code=422, detail="yoy_threshold must be in (0, 10]")
+    for key, value in changes.items():
+        db.set_config(key, value)
+    return _config_out()
+
+
+@app.get("/audit")
+def audit_rows(limit: int = 200) -> list[dict]:
+    try:
+        from audit.log import list_rows
+    except ImportError:
+        return []
+    return list_rows(limit=max(1, min(limit, 5000)))
+
+
+@app.get("/audit/verify")
+def audit_verify() -> dict:
+    try:
+        from audit.log import verify_chain
+    except ImportError:
+        raise HTTPException(status_code=503, detail="audit module not available")
+    return verify_chain()
+
+
+SCALE_TEXT = {1_000_000_000: "(In billions)", 1_000_000: "(In millions)", 1_000: "(In thousands)"}
+_NUMERIC = re.compile(r"[\d$,.()%\s—–-]*")
+
+
+def _norm(text: str) -> str:
+    return re.sub(r"\s+", " ", text.replace("’", "'")).strip().lower()
+
+
+def _highlight(table_html: str, row_label: str) -> tuple[str, bool]:
+    """Wrap the row whose label cell matches row_label in class='hl'."""
+    soup = BeautifulSoup(table_html, "lxml")
+    table = soup.find("table") or soup
+    target = _norm(row_label)
+    if target:
+        for tr in table.find_all("tr"):
+            cells = [_norm(c.get_text(" ")) for c in tr.find_all(["td", "th"])]
+            label = next((c for c in cells if c and not _NUMERIC.fullmatch(c)), "")
+            if label == target or label.startswith(target):
+                tr["class"] = tr.get("class", []) + ["hl"]
+                return str(table), True
+    return str(table), False
+
+
+@app.get("/runs/{thread_id}/source/{value_id}")
+def source_evidence(thread_id: str, value_id: str) -> dict:
+    value = db.get_value(value_id)
+    if value is None or value["thread_id"] != thread_id:
+        raise HTTPException(status_code=404, detail="unknown value for this run")
+    if value.get("table_index") is None:
+        raise HTTPException(status_code=404, detail="no source table recorded for this value (fixture data)")
+    filing = db.get_filing(value["accession"])
+    if filing is None:
+        raise HTTPException(status_code=404, detail="filing not recorded")
+    try:
+        from extract.extractor import get_table_html
+    except ImportError:
+        raise HTTPException(status_code=503, detail="extract module not available")
+
+    meta = {"cik": filing["cik"], "accession": filing["accession"],
+            "primary_document": filing["primary_document"]}
+    try:
+        table_html = get_table_html(meta, int(value["table_index"]))
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"cannot load source table: {e}")
+    html, found = _highlight(table_html, value.get("row_label") or "")
+
+    tables = (_snapshot(thread_id).values or {}).get("tables", {})
+    statement = next((t for t in tables.values() if t.get("index") == value["table_index"]), {})
+    acc = filing["accession"].replace("-", "")
+    return {
+        "heading": statement.get("heading", ""),
+        "scale_text": SCALE_TEXT.get(int(value.get("scale") or 1), ""),
+        "html": html,
+        "row_found": found,
+        "source_url": f"https://www.sec.gov/Archives/edgar/data/{int(filing['cik'])}/{acc}/{filing['primary_document']}",
+    }

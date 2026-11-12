@@ -226,6 +226,17 @@ def get_values(thread_id: str | None = None, ticker: str | None = None) -> list[
         return [_row_to_value(r) for r in conn.execute(sql, args)]
 
 
+def get_value(value_id: str) -> dict | None:
+    rows = [v for v in get_values() if v["id"] == value_id]
+    return rows[0] if rows else None
+
+
+def get_filing(accession: str) -> dict | None:
+    with closing(connect()) as conn:
+        row = conn.execute("SELECT * FROM filings WHERE accession=?", (accession,)).fetchone()
+        return dict(row) if row else None
+
+
 def list_thread_ids() -> list[str]:
     with closing(connect()) as conn:
         return [r[0] for r in conn.execute("SELECT DISTINCT thread_id FROM extracted_values ORDER BY thread_id")]
