@@ -18,7 +18,7 @@ The PS says: **"All mandatory requirements must be demonstrated during evaluatio
 | 3.4 Accounting equation | AAPL passes A = L + E | 1:50 |
 | 3.4 **Segment validation** | AAPL segment revenues sum to total | 1:50 |
 | 3.4 **Year-on-year** | NVDA revenue flagged as an anomaly | 1:50 |
-| 3.4 Passed vs failed clearly shown | Validations tab: ✅ / ❌ / N/A | 1:50 |
+| 3.4 Passed vs failed clearly shown | Extracted values tab: Pass / Fail / N/A per check | 1:50 |
 | 3.5 Auto-pause on low confidence **or** failed check | TSLA run pauses live on A = L + E | 2:15 |
 | 3.5 Value, score, snippet, reason shown | Review card | 2:15 |
 | 3.5 **Approve**, **Correct**, **Reject** | All three clicked, one each (Approve on TSLA, Correct + Reject on WMT) | 2:30–3:20 |
@@ -32,7 +32,9 @@ The PS says: **"All mandatory requirements must be demonstrated during evaluatio
 ## Before judges arrive (checklist)
 
 - [ ] `cache/` populated for all 5 companies and committed
-- [ ] Backend running in a visible terminal (the kill-and-restart is part of the show)
+- [ ] Backend running in a visible terminal (the kill-and-restart is part of the show): `uvicorn api.main:app --port 8000`
+- [ ] **Demo UI = the React dashboard** (`cd ui/frontend && npm run dev`, http://localhost:5173). Streamlit (`ui/app.py`) is backup only. Only ONE browser tab on it
+- [ ] `.env` has `LLM_PROVIDER=groq` and `YOY_THRESHOLD=0.40` (the `.env.example` defaults)
 - [ ] Demo state prepared, **not** a fresh `app.db`:
   - AAPL, MSFT, NVDA fully processed (AAPL shows segments ✅, NVDA shows YoY ❌)
   - WMT run paused with **at least 2 items** waiting (for Correct and Reject). Pick them in rehearsal from the real queue: one with a genuinely wrong value to Correct, one unusable value to Reject. Derived total liabilities (WMT has no XBRL `Liabilities`) will be among them
@@ -52,7 +54,7 @@ The PS ends with: *"Build a reliable autonomous financial auditing agent that ca
 | reliable | Results slide: 2 clean full runs + the kill-and-restart (2:45) |
 | autonomous | Auto-approved vs escalated counts (4:05) + the "autonomy" answer in Q&A |
 | extract | AAPL's 9 values with source rows (1:00) |
-| validate | Validations tab (1:50) |
+| validate | Extracted values tab, per-company checks (1:50) |
 | identify suspicious values | TSLA pauses on A = L + E (2:15); escalation precision (4:05) |
 | request human intervention when necessary | Review card + Approve / Correct / Reject (2:15–3:20) |
 | resume its workflow | Kill and restart (2:45) |
@@ -66,9 +68,9 @@ The closing line repeats this sentence back to them.
 |---|---|---|
 | 0:00 | Title / problem slide | "Auditors copy numbers out of 10-K reports by hand. One wrong number is a misstatement, and AI alone isn't reliable enough. We automate the confident values and send only the uncertain ones to a human." |
 | 0:30 | Architecture slide | "The agent fetches the 10-K from SEC EDGAR, extracts with two independent readers, validates, scores, then auto-approves or pauses for a human. It's a LangGraph workflow that saves state after every step. XBRL is only used at the end, to grade us." |
-| 1:00 | Filings tab: 5 companies; open AAPL | "Five real companies, latest 10-K each. Here are Apple's 9 metrics, each with its period, unit and the exact source row from the filing." |
+| 1:00 | Runs tab: 5 companies; then Extracted values → AAPL | "Five real companies, latest 10-K each. Here are Apple's 9 metrics, each with its period, unit and the exact source row from the filing." |
 | 1:30 | Click one value; point at the threshold slider | "Confidence 0.97: both readers agree, the label matches, period and unit are right, checks passed. The auto-approve threshold is configurable, here." |
-| 1:50 | Validations tab | "Accounting equation: Apple balances. Segment check: Apple's five regions add up to total revenue. Year-on-year: NVIDIA's revenue jump is flagged as an anomaly. Passed, failed, N/A, all visible." |
+| 1:50 | Extracted values tab: AAPL, then NVDA | "Accounting equation: Apple balances. Segment check: Apple's five regions add up to total revenue. Year-on-year: NVIDIA's revenue jump is flagged as an anomaly. Passed, failed, N/A, all visible." |
 | 2:15 | Filings → **Run TSLA** → Review queue | "Tesla. Assets don't equal liabilities plus equity: off by half a percent. The workflow pauses by itself. The reviewer sees the value, score, source row and reason: equity may exclude noncontrolling interest." |
 | 2:30 | **Approve** with note "gap is noncontrolling interest; value matches the filing" | "The number was read correctly; the gap is Tesla's noncontrolling interest. The reviewer approves it, with a reason." (Do **not** Correct equity to include NCI: XBRL `StockholdersEquity` excludes it, so that would turn a right value wrong.) |
 | 2:45 | Zeeshan: Ctrl+C backend, restart. Sai refreshes | "We just crashed the server mid-review. Restarted. The workflow resumed from its saved checkpoint, nothing re-ran, and the row count is unchanged." (Show the count in SQLite.) |

@@ -38,10 +38,17 @@ pip install -r requirements.txt
 cp .env.example .env                                    # fill in keys
 
 # terminal 1 — backend
-uvicorn api.main:app --reload --port 8000
+uvicorn api.main:app --port 8000
 
-# terminal 2 — dashboard
-streamlit run ui/app.py
+# terminal 2 — reviewer dashboard (React, the demo UI)
+cd ui/frontend && npm install && npm run dev            # http://localhost:5173 (proxies /api to :8000)
+
+# backup UI only (if the React app is unavailable): streamlit run ui/app.py
+```
+
+One-command proof run (2 clean runs of all 5 companies, prints the slide numbers):
+```bash
+python -m verify.run_all
 ```
 
 ### `requirements.txt`
@@ -66,7 +73,7 @@ python-dotenv
 ```
 GEMINI_API_KEY=
 GROQ_API_KEY=
-LLM_PROVIDER=gemini                 # gemini | groq
+LLM_PROVIDER=groq                   # groq (openai/gpt-oss-120b) | gemini (gemini-3.8-flash); the other is the automatic backup
 SEC_USER_AGENT="AuditLoop Team yourname@example.com"
 API_BASE=http://localhost:8000
 CONFIDENCE_THRESHOLD=0.85
@@ -85,7 +92,7 @@ auditloop/
 ├── agent/           # LangGraph graph + nodes                     (Zeeshan)
 ├── api/             # FastAPI app                                 (Zeeshan)
 ├── audit/           # append-only log + hash chain                (Srujan)
-├── ui/              # Streamlit dashboard                         (Sai)
+├── ui/              # React reviewer dashboard (ui/frontend); Streamlit backup (ui/app.py)  (Sai)
 ├── data/            # app.db, checkpoints.db, mock_values.json
 ├── cache/           # cached SEC + LLM responses (commit this before judging!)
 ├── docs/            # PRD, architecture, API, data model, demo
@@ -96,11 +103,11 @@ auditloop/
 
 | Ticker | CIK | Why |
 |---|---|---|
-| AAPL | 320193 | Clean baseline, 5 geographic segments |
-| MSFT | 789019 | Segments, clean balance sheet |
-| NVDA | 1045810 | Revenue more than doubled → genuine YoY anomaly |
-| WMT | 104169 | Noncontrolling interest → equity trap for A = L + E |
-| TSLA | 1318605 | Noncontrolling interests → A = L + E ambiguity |
+| AAPL | 320193 | Clean baseline; 5 geographic segments sum to revenue |
+| MSFT | 789019 | Clean balance sheet (A = L + E exact) |
+| NVDA | 1045810 | Revenue +65% year on year → genuine YoY anomaly |
+| WMT | 104169 | No total-liabilities line → liabilities derived (capped at 0.75, a human checks); noncontrolling interest makes A = L + E miss by 2.2% |
+| TSLA | 1318605 | Noncontrolling interest → A = L + E misses by 0.5%; the live pause in the demo |
 
 Backups if one breaks: KO, GOOGL, JNJ, PG. CIKs are resolved at runtime from `company_tickers.json`; the table is for reference.
 
