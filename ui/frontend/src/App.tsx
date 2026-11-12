@@ -95,6 +95,15 @@ export function App() {
         aria-valuemax={100}
       />
 
+      {/* Floating Clear Glassy Navbar: Fixed to viewport, floats along as you scroll */}
+      {!isDashboardOpen && (
+        <Navbar
+          onOpenDashboard={() => setDashboardTab('review')}
+          onDocsClick={() => setIsDocsOpen(true)}
+          onAccuracyClick={() => setIsAccuracyOpen(true)}
+        />
+      )}
+
       {/* Floating Back-to-Top Pill */}
       {!isDashboardOpen && (
         <button
@@ -127,15 +136,10 @@ export function App() {
       <div
         aria-hidden={isDashboardOpen || undefined}
         className={`flex flex-col transition-[transform,opacity,filter] duration-500 ease-out origin-center motion-reduce:transition-none ${
-          isDashboardOpen ? 'scale-[0.985] blur-[1.5px] opacity-70 pointer-events-none' : 'scale-100 blur-0 opacity-100'
+          isDashboardOpen ? 'scale-[0.985] blur-[1.5px] opacity-70 pointer-events-none' : ''
         }`}
       >
         <div className="h-screen flex flex-col overflow-hidden relative">
-          <Navbar
-            onOpenDashboard={() => setDashboardTab('review')}
-            onDocsClick={() => setIsDocsOpen(true)}
-            onAccuracyClick={() => setIsAccuracyOpen(true)}
-          />
           <HeroSection onJoinUs={() => setDashboardTab('runs')} />
         </div>
         <InfoSection
