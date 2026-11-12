@@ -57,7 +57,7 @@ The PS says: **"All mandatory requirements must be demonstrated during evaluatio
 | 2:45 | Zeeshan: Ctrl+C backend, restart. Sai refreshes | "We just crashed the server mid-review. Restarted. The workflow resumed from its saved checkpoint, nothing re-ran, and the row count is unchanged." (Show the count in SQLite.) |
 | 3:05 | TSLA item → **Approve**; next item → **Reject** with reason | "Approve when it's right, reject when the value is unusable. Every decision is recorded before the workflow continues." |
 | 3:20 | Point at sidebar counters | "Completed and pending reviews, tracked live." |
-| 3:35 | Audit log tab → **Verify chain**; SQLite `UPDATE audit_log SET decision='approved' WHERE seq=1;` | "Every decision: original value, corrected value, decision, timestamp. Hash-chained: chain intact. Try to edit history… the database refuses." |
+| 3:35 | Audit log tab → **Verify chain**; SQLite `UPDATE audit_log SET decision='approved' WHERE seq=1;` (row `seq=1` must exist: on an empty log the UPDATE matches 0 rows and "succeeds" silently) | "Every decision: original value, corrected value, decision, timestamp. Hash-chained: chain intact. Try to edit history… the database refuses." |
 | 4:05 | Accuracy report tab | "Graded against the SEC's XBRL data: accuracy X%. N values auto-approved, M escalated. Escalation precision P%: most of what we escalated really was a problem." |
 | 4:40 | Close | "Automate the routine, escalate the uncertain, keep every decision accountable." |
 
