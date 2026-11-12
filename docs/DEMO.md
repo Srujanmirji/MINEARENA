@@ -81,7 +81,7 @@ The closing line repeats this sentence back to them.
 
 **Numbers** (`python -m verify.run_all`, all 5 companies, latest 10-Ks): accuracy **100% (44/44; WMT total liabilities has no XBRL ground truth)**, **28 auto-approved / 17 escalated**, **0 wrong auto-approvals**, escalation precision **64.7%** (the rest are correct values that failed a real accounting check, e.g. NCI gaps), calibration: **43 values scored > 0.85, 100% correct**. 2 full runs, 0 crashes, identical results. Re-run the command after any code change; never quote numbers you didn't just reproduce.
 
-**Reject:** every real value is correct, so there is no honest Reject target in the demo data; rejecting a correct value would record an error. Show the guard instead (Reject stays disabled until a reason is typed) and say what it's for: "Reject when the filing gives no usable number." Team decision before rehearsal: keep this, or drop the Reject click.
+**Reject:** every real value is correct, so there is no honest Reject target in the demo data; rejecting a correct value would record an error. Show the guard instead (Reject stays disabled until a reason is typed) and say what it's for: "Reject when the filing gives no usable number." **Decided (Srujan, lead): guard-only.** At 3:05, after the WMT decisions, point at Reject, show it disabled until a reason is typed, then clear the text without clicking.
 
 ## Likely judge questions (prepare these answers)
 
