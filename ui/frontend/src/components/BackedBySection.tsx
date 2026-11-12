@@ -58,7 +58,7 @@ export const BackedBySection: React.FC = () => {
       },
     },
     {
-      name: 'AMAZON',
+      name: 'WALMART (WMT)',
       style: {
         fontFamily: '"Courier New", monospace',
         fontWeight: 700,
@@ -67,7 +67,7 @@ export const BackedBySection: React.FC = () => {
       },
     },
     {
-      name: 'Alphabet',
+      name: 'Tesla (TSLA)',
       style: {
         fontFamily: 'Palatino, "Book Antiqua", serif',
         fontWeight: 500,

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, CheckCircle2, ShieldCheck, ArrowRight, TrendingUp, BarChart3, Database } from 'lucide-react';
 import { LogoIcon } from './LogoIcon';
+import { api, pct, type Report, type ReportRow } from '../api';
 
 interface AccuracyModalProps {
   isOpen: boolean;
@@ -8,92 +9,58 @@ interface AccuracyModalProps {
   onOpenDashboard?: () => void;
 }
 
+const METRIC_LABEL: Record<string, string> = {
+  revenue: 'Revenue', operating_income: 'Operating Income', net_income: 'Net Income',
+  eps_diluted: 'Diluted EPS', total_assets: 'Total Assets', total_liabilities: 'Total Liabilities',
+  equity: "Shareholders' Equity", operating_cash_flow: 'Operating Cash Flow', cash: 'Cash',
+};
+
+/** Dollars -> "$391,035 M"; EPS stays per share. */
+function money(row: ReportRow, dollars: number | null): string {
+  if (dollars === null) return '—';
+  if (row.metric === 'eps_diluted') return `$${dollars.toFixed(2)}`;
+  return `$${Math.round(dollars / 1e6).toLocaleString('en-US')} M`;
+}
+
+const STATUS_CHIP = {
+  match: { text: 'VERIFIED', cls: 'bg-emerald-100 text-emerald-800' },
+  mismatch: { text: 'MISMATCH', cls: 'bg-red-100 text-red-800' },
+  none: { text: 'NO GROUND TRUTH', cls: 'bg-black/5 text-black/60' },
+};
+
 export const AccuracyModal: React.FC<AccuracyModalProps> = ({
   isOpen,
   onClose,
   onOpenDashboard,
 }) => {
+  const [report, setReport] = useState<Report | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Hooks run before the isOpen early return (rules of hooks).
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setError(null);
+    api.report()
+      .then((r) => { if (!cancelled) setReport(r); })
+      .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load the report'); });
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
+  // Every number below comes from GET /report (verify/report.py), recomputed from app.db.
+  const o = report?.overall;
+  const d = report?.decisions;
+  const top = report?.calibration.find((b) => b.band === '>0.85');
+  const wrongAuto = report?.rows.filter((r) => r.status === 'auto_approved' && r.match === false).length ?? 0;
   const benchmarkStats = [
-    { label: 'Ground-Truth Match', value: '99.2%', sub: '95 of 96 metrics verified', icon: ShieldCheck, color: 'text-emerald-700 bg-emerald-50' },
-    { label: 'Invariant Pass Rate', value: '100%', sub: 'A = L + E validated', icon: CheckCircle2, color: 'text-black bg-black/5' },
-    { label: 'Average Latency', value: '420ms', sub: 'Sub-second ingestion', icon: TrendingUp, color: 'text-black bg-black/5' },
-    { label: 'Escalation Rate', value: '12.5%', sub: 'Routed to review queue', icon: BarChart3, color: 'text-amber-800 bg-amber-50' },
+    { label: 'Ground-Truth Match', value: pct(o?.accuracy), sub: o ? `${o.correct} of ${o.verifiable} values match XBRL` : 'Loading…', icon: ShieldCheck, color: 'text-emerald-700 bg-emerald-50' },
+    { label: 'Auto-Approved', value: d ? String(d.auto_approved) : '—', sub: report ? `${wrongAuto} wrong (${pct(report.auto_approval_error_rate)} error rate)` : 'Loading…', icon: CheckCircle2, color: 'text-black bg-black/5' },
+    { label: 'Escalated to Human', value: d ? String(d.escalated) : '—', sub: report ? `${pct(report.escalation_precision)} were genuine issues` : 'Loading…', icon: BarChart3, color: 'text-amber-800 bg-amber-50' },
+    { label: 'Calibration (C > 0.85)', value: pct(top?.accuracy), sub: top ? `${top.n} high-confidence values` : 'Loading…', icon: TrendingUp, color: 'text-black bg-black/5' },
   ];
-
-  const verificationRows = [
-    {
-      company: 'NVIDIA Corp.',
-      ticker: 'NVDA',
-      year: 'FY 2023',
-      metric: 'Revenues',
-      extracted: '$26,974 M',
-      xbrl: '$26,974 M',
-      confidence: '0.96',
-      status: 'VERIFIED',
-    },
-    {
-      company: 'NVIDIA Corp.',
-      ticker: 'NVDA',
-      year: 'FY 2023',
-      metric: 'Total Assets',
-      extracted: '$41,182 M',
-      xbrl: '$41,182 M',
-      confidence: '0.98',
-      status: 'VERIFIED',
-    },
-    {
-      company: 'Apple Inc.',
-      ticker: 'AAPL',
-      year: 'FY 2023',
-      metric: 'Total Net Sales',
-      extracted: '$383,285 M',
-      xbrl: '$383,285 M',
-      confidence: '0.95',
-      status: 'VERIFIED',
-    },
-    {
-      company: 'Apple Inc.',
-      ticker: 'AAPL',
-      year: 'FY 2023',
-      metric: 'Net Income',
-      extracted: '$96,995 M',
-      xbrl: '$96,995 M',
-      confidence: '0.97',
-      status: 'VERIFIED',
-    },
-    {
-      company: 'Microsoft Corp.',
-      ticker: 'MSFT',
-      year: 'FY 2023',
-      metric: 'Total Assets',
-      extracted: '$411,976 M',
-      xbrl: '$411,976 M',
-      confidence: '0.96',
-      status: 'VERIFIED',
-    },
-    {
-      company: 'Amazon.com Inc.',
-      ticker: 'AMZN',
-      year: 'FY 2023',
-      metric: 'Operating Cash Flow',
-      extracted: '$84,946 M',
-      xbrl: '$84,946 M',
-      confidence: '0.94',
-      status: 'VERIFIED',
-    },
-    {
-      company: 'Alphabet Inc.',
-      ticker: 'GOOGL',
-      year: 'FY 2023',
-      metric: 'Operating Income',
-      extracted: '$84,293 M',
-      xbrl: '$84,293 M',
-      confidence: '0.93',
-      status: 'VERIFIED',
-    },
-  ];
+  const verificationRows = report?.rows ?? [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity duration-200">
@@ -109,7 +76,7 @@ export const AccuracyModal: React.FC<AccuracyModalProps> = ({
                 </h3>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                  99.2% Accuracy
+                  {pct(o?.accuracy)} Accuracy
                 </span>
               </div>
               <p className="text-xs text-black/50">
@@ -154,16 +121,16 @@ export const AccuracyModal: React.FC<AccuracyModalProps> = ({
           <div className="bg-[#F5F5F5] border border-black/5 rounded-2xl p-4 flex items-start gap-3 text-xs leading-relaxed text-black/75">
             <Database className="w-4 h-4 text-black shrink-0 mt-0.5" />
             <div>
-              <strong className="text-black font-semibold">Zero-Hallucination Ground-Truth Verification:</strong>{' '}
-              Every value extracted from unstructured 10-K HTML tables is compared against structured machine-readable XBRL facts submitted by reporting entities to SEC EDGAR. Values matching within 0.1% are validated; deviations automatically trigger the human escalation queue.
+              <strong className="text-black font-semibold">Graded after review, never used to decide:</strong>{' '}
+              Values are extracted from the filed 10-K document (inline-XBRL tags stripped) by a table parser and an LLM. Confidence and accounting checks alone decide what a human reviews. Only after every decision is each final value compared with SEC XBRL Company Facts: correct means within one unit of the table&apos;s scale ($1M for &quot;in millions&quot;, $0.01 for EPS).
             </div>
           </div>
 
           {/* Sample Ground-Truth Cross-Check Table */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-semibold text-black">Verified Filing Extractions (Sample Cohort)</h4>
-              <span className="text-xs text-black/50">Method: Regex Parser + LLM &times; XBRL API</span>
+              <h4 className="text-sm font-semibold text-black">Every Extracted Value vs. SEC XBRL</h4>
+              <a href={api.reportCsvUrl()} className="text-xs text-black/60 underline hover:text-black">Download CSV</a>
             </div>
 
             <div className="overflow-x-auto border border-black/5 rounded-2xl">
@@ -171,7 +138,7 @@ export const AccuracyModal: React.FC<AccuracyModalProps> = ({
                 <thead>
                   <tr className="bg-black/5 text-black font-semibold border-b border-black/5">
                     <th className="p-3">Company</th>
-                    <th className="p-3">Period</th>
+                    <th className="p-3">Decision</th>
                     <th className="p-3">Metric</th>
                     <th className="p-3 text-right">Agent Extracted</th>
                     <th className="p-3 text-right">SEC XBRL Ground Truth</th>
@@ -180,34 +147,41 @@ export const AccuracyModal: React.FC<AccuracyModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5 bg-white">
-                  {verificationRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-black/[0.02] transition-colors">
-                      <td className="p-3 font-semibold text-black">
-                        {row.company}{' '}
-                        <span className="text-[11px] font-mono font-normal text-black/50">
-                          ({row.ticker})
-                        </span>
-                      </td>
-                      <td className="p-3 text-black/60">{row.year}</td>
-                      <td className="p-3 font-medium text-black/80">{row.metric}</td>
-                      <td className="p-3 text-right font-mono font-medium text-black">
-                        {row.extracted}
-                      </td>
-                      <td className="p-3 text-right font-mono font-medium text-emerald-700">
-                        {row.xbrl}
-                      </td>
-                      <td className="p-3 text-center font-mono text-[11px]">
-                        <span className="px-2 py-0.5 rounded-full bg-black/5 font-semibold text-black/80">
-                          {row.confidence}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {error && (
+                    <tr><td colSpan={7} className="p-4 text-center text-red-700">{error}</td></tr>
+                  )}
+                  {!error && !report && (
+                    <tr><td colSpan={7} className="p-4 text-center text-black/50">Loading report…</td></tr>
+                  )}
+                  {report && verificationRows.length === 0 && (
+                    <tr><td colSpan={7} className="p-4 text-center text-black/50">No verified runs yet. Run a company and finish its reviews.</td></tr>
+                  )}
+                  {verificationRows.map((row) => {
+                    const chip = row.match === true ? STATUS_CHIP.match : row.match === false ? STATUS_CHIP.mismatch : STATUS_CHIP.none;
+                    return (
+                      <tr key={row.value_id} className="hover:bg-black/[0.02] transition-colors">
+                        <td className="p-3 font-semibold text-black">{row.ticker}</td>
+                        <td className="p-3 text-black/60">{row.status.replace('_', ' ')}</td>
+                        <td className="p-3 font-medium text-black/80">{METRIC_LABEL[row.metric] ?? row.metric}</td>
+                        <td className="p-3 text-right font-mono font-medium text-black">
+                          {money(row, row.our_value)}
+                        </td>
+                        <td className="p-3 text-right font-mono font-medium text-emerald-700">
+                          {money(row, row.xbrl_value)}
+                        </td>
+                        <td className="p-3 text-center font-mono text-[11px]">
+                          <span className="px-2 py-0.5 rounded-full bg-black/5 font-semibold text-black/80">
+                            {row.confidence.toFixed(2)}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${chip.cls}`}>
+                            {chip.text}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

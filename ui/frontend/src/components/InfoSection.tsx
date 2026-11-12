@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
+import { api, pct } from '../api';
 
 interface InfoSectionProps {
   onDiscover?: () => void;
@@ -10,6 +11,20 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
   onDiscover,
   onOpenAccuracyReport,
 }) => {
+  // Live from GET /report; never a hard-coded number.
+  const [accuracy, setAccuracy] = useState<string>('Accuracy report');
+  useEffect(() => {
+    let cancelled = false;
+    api.report()
+      .then((r) => {
+        if (!cancelled && r.overall.accuracy !== null) {
+          setAccuracy(`${pct(r.overall.accuracy)} accuracy · ${r.overall.correct}/${r.overall.verifiable}`);
+        }
+      })
+      .catch(() => { /* backend down: keep the neutral label */ });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <section id="how-it-works" className="bg-[#F5F5F5] px-6 py-24 scroll-mt-20">
       <div className="max-w-[88rem] mx-auto">
@@ -83,7 +98,7 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs uppercase tracking-wider font-semibold text-emerald-400">
-                  99.2% Accuracy
+                  {accuracy}
                 </span>
                 <span className="text-[11px] text-white/60 bg-white/10 px-2 py-0.5 rounded-full group-hover:bg-white/20 transition-colors">
                   Report &rarr;
@@ -98,7 +113,7 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
             </div>
             <div>
               <p className="text-white/65 text-sm leading-relaxed mb-3">
-                Verify balance equations (Assets = Liabilities + Equity) and reconcile against SEC XBRL facts.
+                Check balance equations (Assets = Liabilities + Equity) on every filing, then grade final values against SEC XBRL facts after review.
               </p>
               <span className="text-xs text-emerald-400 font-medium group-hover:underline inline-flex items-center gap-1">
                 View Ground-Truth Report &rarr;

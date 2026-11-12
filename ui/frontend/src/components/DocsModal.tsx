@@ -83,7 +83,7 @@ export const DocsModal: React.FC<DocsModalProps> = ({
               <div>
                 <h4 className="text-lg font-medium text-black mb-2">Autonomous Filing Audit Pipeline</h4>
                 <p className="text-black/70 leading-relaxed">
-                  AuditLoop is an intelligent agent designed for audit teams and regulatory compliance. It fetches official SEC Form 10-K filings, parses primary financial statements using deterministic regex engines combined with LLM extraction, calculates multi-part confidence scores, validates invariant accounting equations, and escalates anomalies to a verified human review queue.
+                  AuditLoop is an intelligent agent designed for audit teams and regulatory compliance. It fetches official SEC Form 10-K filings, reads the primary financial statements with two independent extractors (a pandas table parser and an LLM), calculates multi-part confidence scores, validates invariant accounting equations, and escalates anomalies to a verified human review queue.
                 </p>
               </div>
 
@@ -98,7 +98,7 @@ export const DocsModal: React.FC<DocsModalProps> = ({
                   {
                     step: '2. Extraction',
                     title: 'Dual-Pass Extraction',
-                    desc: 'Deterministic HTML regex parser cross-checked with LLM extractor to eliminate hallucination risks on numerical quantities.',
+                    desc: 'Deterministic pandas table parser cross-checked with an LLM extractor; an LLM answer is rejected unless its source row appears word-for-word in the table.',
                   },
                   {
                     step: '3. Scoring',
@@ -171,7 +171,7 @@ export const DocsModal: React.FC<DocsModalProps> = ({
                         tag: 'us-gaap:Revenues, us-gaap:SalesRevenueNet',
                         statement: 'Income Statement',
                         unit: 'USD (Millions)',
-                        rule: 'Revenue ≥ 0; YoY variance < 50%',
+                        rule: 'Revenue > 0; YoY change ≤ 40%; segments sum to total',
                       },
                       {
                         name: 'Net Income / (Loss)',
@@ -259,22 +259,22 @@ export const DocsModal: React.FC<DocsModalProps> = ({
                     Total Assets == Total Liabilities + Stockholders' Equity
                   </div>
                   <p className="text-xs text-black/60">
-                    Tolerance: &plusmn;0.05% for rounding differences in filings. If variance exceeds tolerance, both liabilities and equity are escalated to human review.
+                    Tolerance: 0.5% of total assets. If it fails, total assets, total liabilities and equity all escalate to human review (hard check), with a note when equity may exclude noncontrolling interest.
                   </p>
                 </div>
 
                 <div className="bg-[#F8F8F8] border border-black/5 rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-black text-base">2. Income Statement Operating Identity</span>
+                    <span className="font-semibold text-black text-base">2. Segment Sum</span>
                     <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
-                      Mathematical Invariant
+                      Hard, when available
                     </span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-black/5 font-mono text-sm font-semibold text-black mb-2">
-                    Gross Profit - Operating Expenses == Operating Income
+                    &Sigma; segment revenue == Total revenue (&plusmn;0.5%)
                   </div>
                   <p className="text-xs text-black/60">
-                    Cross-checked against the income statement rows to verify COGS and R&amp;D/SG&amp;A breakdowns.
+                    Uses the filing&apos;s segment note. Shown as N/A when no clear revenue-by-segment table exists, never as a fake pass. Scale sanity (~1,000&times; prior year) and sign checks (revenue, assets, liabilities &gt; 0) also run.
                   </p>
                 </div>
 
@@ -286,10 +286,10 @@ export const DocsModal: React.FC<DocsModalProps> = ({
                     </span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-black/5 font-mono text-sm font-semibold text-black mb-2">
-                    |Value(FY) - Value(FY-1)| / Value(FY-1) &le; 0.50
+                    |Value(FY) - Value(FY-1)| / |Value(FY-1)| &le; 0.40
                   </div>
                   <p className="text-xs text-black/60">
-                    Shifts greater than 50% year-on-year trigger human review to check for corporate acquisitions, stock splits, or unit scaling errors (e.g. millions vs thousands).
+                    Changes greater than 40% year-on-year are flagged as anomalies (soft check) and sent to human review, e.g. NVIDIA&apos;s revenue growth. The limit is configurable.
                   </p>
                 </div>
               </div>
@@ -318,20 +318,20 @@ export const DocsModal: React.FC<DocsModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {[
                   {
-                    factor: 'A: Agreement (40%)',
-                    desc: 'Agreement between the deterministic regex HTML table parser and the LLM extractor. Exact match = 1.0; minor rounding difference = 0.5; conflicting numbers = 0.0.',
+                    factor: 'A: Agreement (45%)',
+                    desc: 'Do the two independent extractors (pandas table parser and LLM) agree? Within one table unit = 1.0; one of them has no answer = 0.5; different numbers = 0.0.',
                   },
                   {
-                    factor: 'L: Label Specificity (20%)',
-                    desc: 'Degree of match between the line item string in the 10-K and standard US GAAP XBRL taxonomy labels.',
+                    factor: 'L: Label Match (30%)',
+                    desc: 'Fuzzy match (rapidfuzz ratio) between the 10-K row label and known names for the metric. Below 0.80 always goes to a human, whatever the score.',
                   },
                   {
-                    factor: 'P: Period & Unit (20%)',
-                    desc: 'Verifies the fiscal year (12-month period ended) and scale multiplier (USD in millions vs thousands).',
+                    factor: 'P: Period & Unit (25%)',
+                    desc: 'Right fiscal period and a detected scale ("in millions"). Both = 1.0; one = 0.5.',
                   },
                   {
-                    factor: 'V: Invariant Checks (20%)',
-                    desc: 'Passes all mathematical validations (e.g. Assets = L + E). Full pass = 1.0; failed equation = 0.0.',
+                    factor: 'Validation is separate',
+                    desc: 'Accounting checks answer "does it make sense?", not "did we read it right?". Any failed check escalates, whatever the score. Derived values are capped at 0.75.',
                   },
                 ].map((item, idx) => (
                   <div key={idx} className="bg-[#F8F8F8] border border-black/5 rounded-2xl p-4">
@@ -342,7 +342,7 @@ export const DocsModal: React.FC<DocsModalProps> = ({
               </div>
 
               <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 leading-relaxed">
-                <strong>Threshold Gate:</strong> Extractions with a score &ge; 0.85 are marked <em>AUTO-APPROVED</em>. Any score &lt; 0.85 or failed invariant immediately escalates to the review queue with status <em>NEEDS_REVIEW</em>.
+                <strong>Threshold Gate:</strong> A value is <em>AUTO-APPROVED</em> only if it exists, scores &ge; 0.85 (configurable), its label match is &ge; 0.80 and no validation check failed. Anything else pauses the workflow and escalates to the review queue with the reason.
               </div>
             </div>
           )}
