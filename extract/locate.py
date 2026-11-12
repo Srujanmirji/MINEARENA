@@ -31,6 +31,21 @@ CASH_FLOW_PATTERNS = [
     r"cash\s+flows?\s+s?\s*tatements?",
 ]
 
+# A heading near a table is not enough: notes often mention "the consolidated statements of
+# operations" right before an unrelated table (e.g. Vita Coco's ASC 326 credit-loss table).
+# A statement table must also contain the lines that statement always has.
+MUST_CONTAIN: dict[str, list[tuple[str, ...]]] = {
+    "income_statement": [("revenue", "sales"), ("net income", "net loss", "net earnings", "net (loss)", "net income (loss)")],
+    "balance_sheet": [("total assets",), ("liabilities",)],
+    "cash_flow": [("operating activities", "cash from operations", "provided by operations")],
+}
+
+
+def _looks_like(statement: str, table_text: str) -> bool:
+    """True if the table holds at least one phrase from each group the statement requires."""
+    text = re.sub(r"\s+", " ", table_text.lower())
+    return all(any(p in text for p in group) for group in MUST_CONTAIN[statement])
+
 
 def locate_statements(clean_html: str) -> dict[str, dict]:
     """Locate primary statement tables and scale in cleaned 10-K HTML.
@@ -80,12 +95,15 @@ def locate_statements(clean_html: str) -> dict[str, dict]:
         close_text = prev_text[-250:]
 
         # Income Statement
-        if "income_statement" not in located:
+        if "income_statement" not in located and _looks_like("income_statement", t_text):
             for pat in INCOME_PATTERNS:
                 m = re.search(pat, close_text, re.I)
                 if m:
                     surrounding = close_text[max(0, m.start()-30):min(len(close_text), m.end()+40)].lower()
-                    if "comprehensive" not in surrounding and "percentage" not in surrounding and "certain items in" not in surrounding:
+                    # No "comprehensive" exclusion: a combined "Statements of Operations & Other
+                    # Comprehensive Income" is the income statement, and a standalone comprehensive-
+                    # income statement has no revenue line, so _looks_like() already rejects it.
+                    if "percentage" not in surrounding and "certain items in" not in surrounding:
                         located["income_statement"] = {
                             "index": idx,
                             "heading": m.group(0).strip(),
@@ -95,7 +113,7 @@ def locate_statements(clean_html: str) -> dict[str, dict]:
                         break
 
         # Balance Sheet
-        if "balance_sheet" not in located:
+        if "balance_sheet" not in located and _looks_like("balance_sheet", t_text):
             for pat in BALANCE_PATTERNS:
                 m = re.search(pat, close_text, re.I)
                 if m:
@@ -110,7 +128,7 @@ def locate_statements(clean_html: str) -> dict[str, dict]:
                         break
 
         # Cash Flow Statement
-        if "cash_flow" not in located:
+        if "cash_flow" not in located and _looks_like("cash_flow", t_text):
             for pat in CASH_FLOW_PATTERNS:
                 m = re.search(pat, close_text, re.I)
                 if m:

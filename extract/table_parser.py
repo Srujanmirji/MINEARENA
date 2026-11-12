@@ -64,8 +64,11 @@ def label_allowed(metric: str, label: str) -> bool:
         return "diluted" in lbl
     if metric == "total_liabilities":
         return "total" in lbl and "current" not in lbl and "equity" not in lbl and " and " not in lbl
-    if metric == "net_income":  # parent's net income: never the NCI share, per-share or operating rows
-        return not any(w in lbl for w in ("interest", "operating", "per share", "per common share", "weighted"))
+    if metric == "net_income":  # parent's net income: never the NCI share, per-share, operating or OCI rows
+        # "comprehensive": combined "Operations & Comprehensive Income" statements also hold
+        # "Total comprehensive income", a different number (Vita Coco: 72,666 vs net income 71,320).
+        return not any(w in lbl for w in ("interest", "operating", "per share", "per common share", "weighted",
+                                           "comprehensive"))
     if metric == "equity":
         return "noncontrolling" not in lbl and "liabilities" not in lbl and "method" not in lbl
     if metric == "revenue":
