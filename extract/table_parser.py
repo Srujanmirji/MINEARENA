@@ -128,6 +128,9 @@ def parse_rows(table_html: str) -> list[dict]:
             seen_years.add(y)
             year_groups.append((y, []))
         year_groups[-1][1].append(c_idx)
+    # Latest year first, whatever the column order: some filers (Alphabet) list years oldest first,
+    # and everything downstream treats values[0] as the current year and values[1] as the prior year.
+    year_groups.sort(key=lambda g: g[0], reverse=True)
 
     # 2. Extract parsed rows with label, values per date group, and snippet
     soup = BeautifulSoup(table_html, "lxml")
