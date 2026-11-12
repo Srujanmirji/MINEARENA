@@ -2,11 +2,14 @@
 
 Runs: POST /runs, GET /runs, GET /runs/{thread_id}, GET /runs/{thread_id}/source/{value_id}
 Review: GET /pending, POST /runs/{thread_id}/decision
-Data: GET /values, GET /validations, GET/PUT /config, GET /audit, GET /audit/verify, GET /health
+Data: GET /values, GET /validations, GET /report, GET /report.csv, GET/PUT /config,
+      GET /audit, GET /audit/verify, GET /health
 
 Run status is always derived from the LangGraph checkpoint (graph.get_state), never from
 memory alone, so a killed-and-restarted server shows the same paused item.
 """
+import csv
+import io
 import re
 import threading
 from contextlib import asynccontextmanager
@@ -15,6 +18,7 @@ from typing import Literal
 from bs4 import BeautifulSoup
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.responses import Response
 from langgraph.types import Command
 from pydantic import BaseModel, model_validator
 
@@ -424,3 +428,38 @@ def source_evidence(thread_id: str, value_id: str) -> dict:
         "row_found": found,
         "source_url": f"https://www.sec.gov/Archives/edgar/data/{int(filing['cik'])}/{acc}/{filing['primary_document']}",
     }
+
+
+# ---------- accuracy report (Srujan's verify.report) ----------
+
+REPORT_COLUMNS = ["value_id", "thread_id", "ticker", "metric", "status", "confidence", "escalation_reason",
+                  "orig_value", "our_value", "xbrl_tag", "xbrl_value", "abs_error", "match", "orig_match",
+                  "yoy_anomaly"]
+
+
+def _report(thread_id: str | None) -> dict:
+    try:
+        from verify.report import build_report
+    except ImportError:
+        raise HTTPException(status_code=503, detail="verify.report not available")
+    if thread_id is not None and thread_id not in _known_threads():
+        raise HTTPException(status_code=404, detail="unknown thread_id")
+    return build_report(thread_id)
+
+
+@app.get("/report")
+def report(thread_id: str | None = None) -> dict:
+    """All runs by default (the headline numbers); ?thread_id= for one run."""
+    return _report(thread_id)
+
+
+@app.get("/report.csv")
+def report_csv(thread_id: str | None = None) -> Response:
+    rows = _report(thread_id)["rows"]
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=REPORT_COLUMNS, extrasaction="ignore", lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    name = f"auditloop-report-{thread_id or 'all'}.csv"
+    return Response(content=buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})

@@ -72,6 +72,45 @@ def count(data_dir: str, sql: str, args: tuple = ()) -> int:
         conn.close()
 
 
+# Keys every response must carry (docs/API.md). Extra keys are allowed; missing ones break the UI.
+CONTRACT = {
+    "POST /runs": {"thread_id", "status", "created"},
+    "GET /runs[]": {"thread_id", "ticker", "status", "n_values", "n_pending", "n_auto", "n_reviewed"},
+    "GET /runs/{id}": {"thread_id", "status", "next", "steps_done", "interrupt", "error"},
+    "GET /pending[]": {"thread_id", "is_current", "value", "reason"},
+    "POST decision": {"status", "next_value_id", "duplicate"},
+    "GET /values[]": {"id", "ticker", "metric", "value", "status", "final_value", "confidence", "signals",
+                      "validation", "escalation_reason", "row_label", "source_snippet"},
+    "GET /validations[]": {"ticker", "check", "severity", "status", "detail"},
+    "GET /report": {"overall", "by_metric", "by_company", "decisions", "escalation_precision",
+                    "auto_approval_error_rate", "calibration", "rows"},
+    "GET /audit[]": {"seq", "ts", "decision_id", "thread_id", "value_id", "metric", "original_value",
+                     "corrected_value", "decision", "reviewer", "reason", "prev_hash", "hash"},
+    "GET /audit/verify": {"ok", "rows", "broken_at_seq"},
+    "GET /config": {"threshold", "yoy_threshold"},
+    "GET /health": {"ok", "db", "llm_provider", "paused_runs"},
+}
+
+
+def contract_checks(c: httpx.Client, samples: dict) -> None:
+    """samples: contract name -> one response body (a dict) captured during the flow."""
+    live = {
+        "GET /runs[]": (c.get("/runs").json() or [{}])[0],
+        "GET /values[]": (c.get("/values").json() or [{}])[0],
+        "GET /validations[]": (c.get("/validations").json() or [{}])[0],
+        "GET /report": c.get("/report").json(),
+        "GET /audit[]": (c.get("/audit").json() or [{}])[0],
+        "GET /audit/verify": c.get("/audit/verify").json(),
+        "GET /config": c.get("/config").json(),
+        "GET /health": c.get("/health").json(),
+    }
+    bodies = {**live, **samples}
+    missing = {name: sorted(keys - set(bodies.get(name) or {})) for name, keys in CONTRACT.items()}
+    missing = {k: v for k, v in missing.items() if v}
+    check("   every response carries the keys docs/API.md promises",
+          not missing, "all 12 shapes match" if not missing else f"missing: {missing}")
+
+
 def real_checks(c: httpx.Client) -> None:
     """AAPL from the committed cache: the run reaches a pause or finishes, and every value with
     a table index returns its source table with the row highlighted."""
@@ -106,6 +145,8 @@ def main() -> int:
         r = c.post("/runs", json={"ticker": TICKER}).json()
         tid = r["thread_id"]
         run = wait_not_running(c, tid)
+        samples = {"POST /runs": r, "GET /runs/{id}": run,
+                   "GET /pending[]": (c.get("/pending").json() or [{}])[0]}
         first = (run.get("interrupt") or {}).get("value", {}).get("id")
         queue = [p for p in c.get("/pending").json() if p["thread_id"] == tid]
         check("1. run pauses at the first escalated item",
@@ -130,6 +171,7 @@ def main() -> int:
         # ---- Test 2: approve -> resumes -> pauses at the next item
         decision = {"value_id": first, "action": "approve", "reviewer": "test"}
         d = c.post(f"/runs/{tid}/decision", json=decision).json()
+        samples["POST decision"] = d
         second = d.get("next_value_id")
         run = c.get(f"/runs/{tid}").json()
         check("2. approve resumes and pauses at the next item",
@@ -220,6 +262,34 @@ def main() -> int:
               f"status={run['status']}, undecided={undecided}, audit rows={n_aud}/{n_values}")
         after_done = c.post(f"/runs/{tid}/decision", json={"value_id": "nope:cash", "action": "approve"})
         check("   409 when the run is not paused", after_done.status_code == 409, str(after_done.status_code))
+
+        # ---- report + CSV
+        rep = c.get("/report", params={"thread_id": tid}).json()
+        dec = rep["decisions"]
+        check("   GET /report?thread_id counts this run's decisions",
+              len(rep["rows"]) == n_values and dec["pending"] == 0
+              and dec["auto_approved"] + dec["reviewed"] == n_values,
+              f"{dec}, accuracy {rep['overall']['accuracy']} (fixtures have no XBRL ground truth)")
+        csv_resp = c.get("/report.csv", params={"thread_id": tid})
+        lines = csv_resp.text.strip().splitlines()
+        check("   GET /report.csv downloads one row per value",
+              csv_resp.status_code == 200 and csv_resp.headers["content-type"].startswith("text/csv")
+              and "attachment" in csv_resp.headers.get("content-disposition", "")
+              and lines[0].startswith("value_id,") and len(lines) == n_values + 1,
+              f"{len(lines) - 1} rows, header: {lines[0][:60]}...")
+        unknown = c.get("/report", params={"thread_id": "nope-1999"}).status_code
+        check("   GET /report 404 for an unknown run", unknown == 404, str(unknown))
+
+        # ---- force re-run: new thread id, original untouched
+        forced = c.post("/runs", json={"ticker": TICKER, "force": True}).json()
+        forced_run = wait_not_running(c, forced["thread_id"])
+        again = c.post("/runs", json={"ticker": TICKER}).json()
+        check("   POST /runs force:true starts a new thread; plain POST still returns the original",
+              forced["created"] is True and forced["thread_id"] == f"{tid}-r2"
+              and forced_run["status"] == "paused" and again["thread_id"] == tid and again["created"] is False,
+              f"{forced['thread_id']} {forced_run['status']}; plain POST -> {again['thread_id']} ({again['status']})")
+
+        contract_checks(c, samples)
 
         if "--real" in sys.argv:
             real_checks(c)
