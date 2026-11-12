@@ -1,0 +1,14 @@
+langgraph
+langgraph-checkpoint-sqlite
+fastapi
+uvicorn
+streamlit
+google-genai
+groq
+pydantic
+httpx
+pandas
+lxml
+beautifulsoup4
+rapidfuzz
+python-dotenv
