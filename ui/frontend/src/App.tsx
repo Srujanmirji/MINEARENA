@@ -4,99 +4,55 @@ import { HeroSection } from './components/HeroSection';
 import { InfoSection } from './components/InfoSection';
 import { BackedBySection } from './components/BackedBySection';
 import { UseCasesSection } from './components/UseCasesSection';
-import { FullScreenDashboard } from './components/FullScreenDashboard';
-import { LoginModal } from './components/LoginModal';
+import { FullScreenDashboard, type DashboardTab } from './components/FullScreenDashboard';
 import { DocsModal } from './components/DocsModal';
 import { AccuracyModal } from './components/AccuracyModal';
 
 export function App() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  // null = landing page; otherwise the dashboard is open on that tab.
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab | null>(null);
   const [isDocsOpen, setIsDocsOpen] = useState(false);
   const [isAccuracyOpen, setIsAccuracyOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
-  const [modalMode, setModalMode] = useState<'wallet' | 'join' | 'discover' | 'commerce'>('wallet');
-
-  const handleOpenModal = (mode: 'wallet' | 'join' | 'discover' | 'commerce') => {
-    setModalMode(mode);
-    setIsModalOpen(true);
-  };
-
-  const handleLoginSuccess = (user: string) => {
-    setIsLoggedIn(true);
-    setCurrentUser(user);
-    handleOpenModal('wallet');
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-  };
+  const isDashboardOpen = dashboardTab !== null;
 
   return (
     <div className="flex flex-col bg-[#F5F5F5] min-h-screen selection:bg-black selection:text-white">
-      {/* Landing page shell with spatial depth animation when dashboard opens */}
+      {/* Landing page: dimmed and inert while the dashboard is open */}
       <div
-        className={`flex flex-col transition-all duration-500 ease-out origin-center ${
-          isModalOpen ? 'scale-[0.985] blur-[1.5px] opacity-70 pointer-events-none' : 'scale-100 blur-0 opacity-100'
+        aria-hidden={isDashboardOpen || undefined}
+        className={`flex flex-col transition-[transform,opacity,filter] duration-500 ease-out origin-center motion-reduce:transition-none ${
+          isDashboardOpen ? 'scale-[0.985] blur-[1.5px] opacity-70 pointer-events-none' : 'scale-100 blur-0 opacity-100'
         }`}
       >
-        {/* 1. First Section: Navbar + Hero in h-screen overflow-hidden wrapper */}
         <div className="h-screen flex flex-col overflow-hidden relative">
           <Navbar
-            isLoggedIn={isLoggedIn}
-            currentUser={currentUser}
-            onOpenDashboard={() => handleOpenModal('wallet')}
-            onLogout={handleLogout}
+            onOpenDashboard={() => setDashboardTab('review')}
             onDocsClick={() => setIsDocsOpen(true)}
             onAccuracyClick={() => setIsAccuracyOpen(true)}
           />
-          <HeroSection
-            onJoinUs={() => handleOpenModal('wallet')}
-          />
+          <HeroSection onJoinUs={() => setDashboardTab('runs')} />
         </div>
-
-        {/* 2. Info Section (How it works & Accuracy Card) */}
         <InfoSection
-          onDiscover={() => handleOpenModal('discover')}
+          onDiscover={() => setDashboardTab('values')}
           onOpenAccuracyReport={() => setIsAccuracyOpen(true)}
         />
-
-        {/* 3. Backed By Section */}
         <BackedBySection />
-
-        {/* 4. Use Cases Section (For auditors) */}
-        <UseCasesSection onKnowMore={() => handleOpenModal('commerce')} />
+        <UseCasesSection onKnowMore={() => setDashboardTab('review')} />
       </div>
 
-      {/* Login Modal */}
-      <LoginModal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-      />
-
-      {/* Full Screen AuditLoop Reviewer Dashboard & Console */}
-      {isModalOpen && (
-        <FullScreenDashboard
-          onClose={() => setIsModalOpen(false)}
-          initialTab={modalMode === 'discover' ? 'accuracy' : modalMode === 'commerce' ? 'runs' : 'review'}
-        />
+      {isDashboardOpen && (
+        <FullScreenDashboard onClose={() => setDashboardTab(null)} initialTab={dashboardTab} />
       )}
 
-      {/* Documentation Modal (PS-01 Specifications & API Reference) */}
       <DocsModal
         isOpen={isDocsOpen}
         onClose={() => setIsDocsOpen(false)}
-        onOpenDashboard={() => (isLoggedIn ? handleOpenModal('wallet') : setIsLoginOpen(true))}
+        onOpenDashboard={() => setDashboardTab('review')}
       />
-
-      {/* Ground-Truth XBRL Accuracy Benchmark Modal */}
       <AccuracyModal
         isOpen={isAccuracyOpen}
         onClose={() => setIsAccuracyOpen(false)}
-        onOpenDashboard={() => (isLoggedIn ? handleOpenModal('wallet') : setIsLoginOpen(true))}
+        onOpenDashboard={() => setDashboardTab('accuracy')}
       />
     </div>
   );
