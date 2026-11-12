@@ -56,6 +56,18 @@ Mapped one-to-one to the 8 judging criteria.
 
 **In scope:** 5 companies × latest 10-K × 9 metrics = **45 values**, plus prior-year values for the year-on-year check.
 
+Latest 10-K per company as of 12 Nov 2026 (from the Submissions API; decided by Srujan, lead):
+
+| Ticker | Fiscal year end | Accession | Filed |
+|---|---|---|---|
+| AAPL | 2026-09-26 | 0000320193-26-000026 | 2026-11-03 |
+| MSFT | 2026-06-30 | 0001193125-26-323660 | 2026-07-29 |
+| NVDA | 2026-01-25 | 0001045810-26-000021 | 2026-02-25 |
+| WMT | 2026-01-31 | 0000104169-26-000055 | 2026-03-13 |
+| TSLA | 2025-12-31 | 0001628280-26-003952 | 2026-01-29 |
+
+The FY2024 Apple rows in `data/mock_values.json` are test fixtures only; the demo uses the filings above.
+
 **Metrics extracted**
 
 | # | Metric key | Display name | Required by PS? |

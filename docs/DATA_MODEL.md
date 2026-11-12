@@ -86,7 +86,7 @@ class Decision(BaseModel):
 
 21 rows already in the repo. Each row has a `_source` field (ignored by Pydantic):
 
-- **9 REAL rows:** Apple FY2024 10-K (revenue, operating income, net income, diluted EPS, total assets, total liabilities, equity, cash, operating cash flow). Mayur's extractor must reproduce these exactly for AAPL.
+- **9 REAL rows:** Apple FY2024 10-K, accession `0000320193-24-000123` (revenue, operating income, net income, diluted EPS, total assets, total liabilities, equity, cash, operating cash flow). A regression fixture: pointed at **that** filing, Mayur's extractor must reproduce these exactly. The demo itself uses each company's **latest** 10-K (AAPL = FY2026, see PRD §6), so these rows will not match a demo run.
 - **12 SYNTHETIC rows** ("Mock Industries" and "Mock Bank", clearly labelled): A = L + E off by 2%, revenue +120% YoY, weak label match, missing value, extractors disagree, bank with no plain revenue line, derived liabilities, missing EPS.
 
 > Synthetic rows are for wiring and tests only. They never appear in the demo.

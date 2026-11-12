@@ -64,7 +64,7 @@ Same order as the PS workflow: Step 3 confidence → Step 4 validation → Step 
 > Ask your AI tool to write these. The table above *is* the spec; paste it in.
 
 ### 7:00–8:00 PM — Real AAPL  ⟵ **checkpoint 8 PM (Mayur leads)**
-- [ ] Run your functions on Mayur's real AAPL output; check the 3 score parts look sane. AAPL must pass every validation (its real values balance: 308,030 + 56,950 = 364,980)
+- [ ] Run your functions on Mayur's real AAPL output; check the 3 score parts look sane. AAPL must pass every validation. The run uses the **latest** 10-K (AAPL FY2026, PRD §6), not the FY2024 mock rows; its balance sheet balances exactly. Expect TSLA to fail A = L + E by ~0.5% (noncontrolling interest) and WMT to have no XBRL `Liabilities` (no ground truth)
 
 ### 8:00–11:00 PM — Ground truth
 - [ ] `verify/xbrl.py`: `verify_values(values, facts, accession) -> rows` (DATA_MODEL §4)
