@@ -78,7 +78,7 @@ export const BackedBySection: React.FC = () => {
   ];
 
   return (
-    <section className="bg-[#F5F5F5] px-6 py-12 md:py-16">
+    <section className="bg-[#F5F5F5] px-6 py-12 md:py-16 overflow-hidden">
       <div className="max-w-[88rem] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 items-center">
         {/* Scoped style for backers marquee */}
         <style>{`
@@ -101,14 +101,14 @@ export const BackedBySection: React.FC = () => {
         `}</style>
 
         {/* Left Col (1/4) */}
-        <div className="md:col-span-1">
+        <div className="md:col-span-1 reveal-from-left delay-75">
           <p className="text-black/70 text-base leading-relaxed whitespace-pre-line">
             {"Engineered for SEC EDGAR\nand US GAAP filing standards."}
           </p>
         </div>
 
         {/* Right Col (3/4): Infinite Marquee */}
-        <div className="md:col-span-3 overflow-hidden relative py-2">
+        <div className="md:col-span-3 overflow-hidden relative py-2 reveal-from-right delay-150">
           {/* Subtle edge fades */}
           <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-[#F5F5F5] to-transparent pointer-events-none z-10" />
           <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#F5F5F5] to-transparent pointer-events-none z-10" />

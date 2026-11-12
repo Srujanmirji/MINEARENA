@@ -7,31 +7,31 @@ interface UseCasesSectionProps {
 
 export const UseCasesSection: React.FC<UseCasesSectionProps> = ({ onKnowMore }) => {
   return (
-    <section id="for-auditors" className="bg-[#F5F5F5] px-6 py-24 scroll-mt-20">
+    <section id="for-auditors" className="bg-[#F5F5F5] px-6 py-24 scroll-mt-20 overflow-hidden">
       <div className="max-w-[88rem] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column (5 cols) */}
+        {/* Left Column (5 cols) with scroll reveal motions */}
         <div className="lg:col-span-5 md:pr-8 md:pt-2">
           {/* Eyebrow */}
-          <p className="text-black/60 text-sm mb-2 font-medium tracking-wide uppercase">
+          <p className="reveal-from-left text-black/60 text-sm mb-2 font-medium tracking-wide uppercase">
             Filing Intelligence in Practice
           </p>
 
           {/* Heading */}
           <h2
-            className="text-5xl md:text-6xl font-medium leading-none mb-6 text-black"
+            className="reveal-from-left delay-75 text-5xl md:text-6xl font-medium leading-none mb-6 text-black"
             style={{ letterSpacing: '-0.04em' }}
           >
             Audit modes
           </h2>
 
           {/* Paragraph */}
-          <p className="text-black/70 text-base leading-relaxed mb-8">
+          <p className="reveal-from-left delay-150 text-black/70 text-base leading-relaxed mb-8">
             AuditLoop powers automated filing intake for audit teams, compliance leads, and financial analysts requiring zero-hallucination metric extraction.
           </p>
 
           {/* Key capabilities list */}
           <div className="space-y-4 border-t border-black/10 pt-6">
-            <div className="flex items-start gap-3">
+            <div className="reveal-from-left delay-150 flex items-start gap-3">
               <span className="p-1.5 rounded-md bg-black text-white shrink-0 mt-0.5">
                 <Zap className="w-3.5 h-3.5" />
               </span>
@@ -43,7 +43,7 @@ export const UseCasesSection: React.FC<UseCasesSectionProps> = ({ onKnowMore }) 
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
+            <div className="reveal-from-left delay-225 flex items-start gap-3">
               <span className="p-1.5 rounded-md bg-black text-white shrink-0 mt-0.5">
                 <CheckCircle2 className="w-3.5 h-3.5" />
               </span>
@@ -55,7 +55,7 @@ export const UseCasesSection: React.FC<UseCasesSectionProps> = ({ onKnowMore }) 
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
+            <div className="reveal-from-left delay-300 flex items-start gap-3">
               <span className="p-1.5 rounded-md bg-black text-white shrink-0 mt-0.5">
                 <ShieldCheck className="w-3.5 h-3.5" />
               </span>
@@ -69,8 +69,8 @@ export const UseCasesSection: React.FC<UseCasesSectionProps> = ({ onKnowMore }) 
           </div>
         </div>
 
-        {/* Right Column (7 cols) */}
-        <div className="lg:col-span-7 relative rounded-3xl overflow-hidden shadow-sm border border-black/5 bg-[#E8E8E8]">
+        {/* Right Column (7 cols) with scale reveal and subtle depth */}
+        <div className="reveal-scale delay-150 lg:col-span-7 relative rounded-3xl overflow-hidden shadow-sm border border-black/5 bg-[#E8E8E8]">
           {/* Background Video with poster fallback */}
           <video
             autoPlay

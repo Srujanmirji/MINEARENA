@@ -24,7 +24,7 @@ export const Footer: React.FC<FooterProps> = ({
   return (
     <footer className="bg-[#0B0F17] text-white border-t border-white/10 select-none">
       {/* Pre-footer Callout Banner */}
-      <div className="border-b border-white/10 px-6 py-14">
+      <div className="border-b border-white/10 px-6 py-14 reveal-on-scroll">
         <div className="max-w-[88rem] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="max-w-2xl">
             <h3 className="text-3xl md:text-4xl font-medium tracking-tight text-white leading-tight">
@@ -51,7 +51,7 @@ export const Footer: React.FC<FooterProps> = ({
       </div>
 
       {/* Main Footer Links */}
-      <div className="px-6 py-16">
+      <div className="px-6 py-16 reveal-on-scroll delay-150">
         <div className="max-w-[88rem] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
           {/* Brand Col (spans 2) */}
           <div className="lg:col-span-2 pr-4">

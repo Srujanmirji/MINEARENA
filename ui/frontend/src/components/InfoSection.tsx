@@ -28,10 +28,10 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
   return (
     <section id="how-it-works" className="bg-[#F5F5F5] px-6 py-24 scroll-mt-20">
       <div className="max-w-[88rem] mx-auto">
-        {/* Row 1: 2-col header grid */}
+        {/* Row 1: 2-col header grid with scroll reveals */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16 items-start">
           {/* Left Column */}
-          <div>
+          <div className="reveal-from-left">
             <h2
               className="text-black text-4xl md:text-5xl font-medium leading-tight mb-8"
               style={{ letterSpacing: '-0.03em' }}
@@ -51,18 +51,18 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
           </div>
 
           {/* Right Column */}
-          <div>
+          <div className="reveal-from-right delay-150">
             <p className="text-black/70 text-2xl md:text-3xl leading-relaxed">
               AuditLoop is a human-in-the-loop financial auditor agent that extracts 10-K metrics, validates balance equations, and proves accuracy against SEC XBRL facts.
             </p>
           </div>
         </div>
 
-        {/* Row 2: 4-col card grid */}
+        {/* Row 2: 4-col card grid with staggered scroll glide */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1 (spans 2 cols on lg) */}
           <div
-            className="lg:col-span-2 rounded-2xl p-7 min-h-80 flex flex-col justify-between overflow-hidden relative shadow-sm transition-transform duration-300 hover:-translate-y-1"
+            className="reveal-on-scroll delay-75 lg:col-span-2 rounded-2xl p-7 min-h-80 flex flex-col justify-between overflow-hidden relative shadow-sm transition-transform duration-300 hover:-translate-y-1 group"
             style={{
               backgroundImage: `url('/coins-gold.jpg')`,
               backgroundSize: 'cover',
@@ -91,7 +91,7 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
           <div
             id="accuracy"
             onClick={onOpenAccuracyReport}
-            className="scroll-mt-28 lg:col-span-1 rounded-2xl p-7 min-h-80 flex flex-col justify-between shadow-sm transition-transform duration-300 hover:-translate-y-1 relative group cursor-pointer"
+            className="reveal-on-scroll delay-150 scroll-mt-28 lg:col-span-1 rounded-2xl p-7 min-h-80 flex flex-col justify-between shadow-sm transition-transform duration-300 hover:-translate-y-1 relative group cursor-pointer"
             style={{ backgroundColor: '#2B2644' }}
             title="Click to view full SEC XBRL Accuracy Report"
           >
@@ -123,7 +123,7 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
 
           {/* Card 3 (solid #2B2644) */}
           <div
-            className="lg:col-span-1 rounded-2xl p-7 min-h-80 flex flex-col justify-between shadow-sm transition-transform duration-300 hover:-translate-y-1"
+            className="reveal-on-scroll delay-225 lg:col-span-1 rounded-2xl p-7 min-h-80 flex flex-col justify-between shadow-sm transition-transform duration-300 hover:-translate-y-1"
             style={{ backgroundColor: '#2B2644' }}
           >
             <div>
