@@ -47,8 +47,8 @@ export function ReviewTab({ threshold, onDecided, onOpenRuns }: Props) {
         </div>
         <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={queue.reload} disabled={queue.isLoading}
-          className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50">
-          <RefreshCw className="w-3.5 h-3.5" /> {queue.isLoading ? 'Refreshing…' : 'Refresh'}
+          className="inline-flex items-center gap-1.5 min-h-10 px-4 rounded-full border border-gray-200 bg-white text-xs font-semibold text-gray-800 hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all duration-200 shadow-2xs disabled:opacity-50 cursor-pointer">
+          <RefreshCw className={`w-3.5 h-3.5 ${queue.isLoading ? 'animate-spin text-amber-500' : 'text-gray-500'}`} /> {queue.isLoading ? 'Refreshing…' : 'Refresh'}
         </button>
         {current.length > 1 && (
           <label className="flex items-center gap-2 text-gray-600">
@@ -218,19 +218,19 @@ function DecisionForm({ item, onDone }: { item: PendingItem; onDone: (message: s
 
       {error && <div role="alert" className="mt-3 text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>}
 
-      <div className="grid grid-cols-3 gap-3 mt-4">
+      <div className="grid grid-cols-3 gap-3 mt-5">
         <button type="button" disabled={busy !== null} onClick={() => submit('approve')}
-          className="min-h-11 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold rounded-lg disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
+          className="min-h-12 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white text-sm font-bold rounded-xl shadow-[0_4px_14px_rgba(5,150,105,0.35)] hover:shadow-[0_6px_20px_rgba(5,150,105,0.5)] hover:scale-[1.02] active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
           {busy === 'approve' ? 'Saving…' : 'Approve'}
         </button>
         <button type="button" disabled={busy !== null || !canCorrect} onClick={() => submit('correct')}
           aria-describedby="decision-hint"
-          className="min-h-11 bg-white hover:bg-blue-50 text-blue-700 border border-blue-500 text-sm font-semibold rounded-lg disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+          className="min-h-12 bg-white hover:bg-blue-50/80 text-blue-700 border-2 border-blue-600 text-sm font-bold rounded-xl shadow-xs hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
           {busy === 'correct' ? 'Saving…' : 'Correct'}
         </button>
         <button type="button" disabled={busy !== null || !canReject} onClick={() => submit('reject')}
           aria-describedby="decision-hint"
-          className="min-h-11 bg-white hover:bg-red-50 text-red-700 border border-red-400 text-sm font-semibold rounded-lg disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">
+          className="min-h-12 bg-white hover:bg-red-50/80 text-red-700 border-2 border-red-500 text-sm font-bold rounded-xl shadow-xs hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">
           {busy === 'reject' ? 'Saving…' : 'Reject'}
         </button>
       </div>
