@@ -41,9 +41,21 @@ MUST_CONTAIN: dict[str, list[tuple[str, ...]]] = {
 }
 
 
+# MD&A summary tables repeat revenue and net income next to "% of net sales" or "% change"
+# columns (Home Depot); the audited statement never has them.
+NOT_A_STATEMENT = ("% of net sales", "% of sales", "% of revenue", "% of total revenue", "% change", "percent of net sales")
+
+# Scale notes as filers actually write them: "(In millions, ...)", "(MILLIONS, EXCEPT PER SHARE DATA)"
+# (Pfizer), "dollars in millions", "$ in thousands", "millions of dollars".
+SCALE_MILLIONS = re.compile(r"\bin\s+millions\b|\(\s*\$?\s*millions\b|\bmillions,\s+except\b|\$\s*in\s+millions|\bmillions\s+of\s+(?:u\.s\.\s+)?dollars\b")
+SCALE_THOUSANDS = re.compile(r"\bin\s+thousands\b|\(\s*\$?\s*thousands\b|\bthousands,\s+except\b|\$\s*in\s+thousands|\bthousands\s+of\s+(?:u\.s\.\s+)?dollars\b")
+
+
 def _looks_like(statement: str, table_text: str) -> bool:
     """True if the table holds at least one phrase from each group the statement requires."""
     text = re.sub(r"\s+", " ", table_text.lower())
+    if statement == "income_statement" and any(p in text for p in NOT_A_STATEMENT):
+        return False
     return all(any(p in text for p in group) for group in MUST_CONTAIN[statement])
 
 
@@ -82,14 +94,15 @@ def locate_statements(clean_html: str) -> dict[str, dict]:
                 if sum(len(x) for x in prev_nodes) > 600:
                     break
         prev_text = " ".join(reversed(prev_nodes))
-        top_rows_text = " ".join(r.get_text(separator=" ", strip=True) for r in rows[:3])
+        top_rows_text = " ".join(r.get_text(separator=" ", strip=True) for r in rows[:6])
 
-        # Scale detection: "in millions" -> 1_000_000, "in thousands" -> 1_000, else 1
+        # Scale detection: millions -> 1_000_000, thousands -> 1_000, else 1 (an undetected scale is
+        # caught downstream: scoring/validation.py sends it to a human).
         scale = 1
-        combined_text = (prev_text + " " + top_rows_text).lower()
-        if re.search(r"\b(in\s+millions|amounts\s+in\s+millions|dollars\s+in\s+millions)\b", combined_text):
+        combined_text = re.sub(r"\s+", " ", (prev_text + " " + top_rows_text).lower())
+        if SCALE_MILLIONS.search(combined_text):
             scale = 1_000_000
-        elif re.search(r"\b(in\s+thousands|amounts\s+in\s+thousands|dollars\s+in\s+thousands)\b", combined_text):
+        elif SCALE_THOUSANDS.search(combined_text):
             scale = 1_000
 
         close_text = prev_text[-250:]

@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "Revenues",
+      "current_value": 402836,
+      "prior_value": 350018,
+      "column_header": "2025",
+      "snippet": "Revenues | $ | 307,394 | $ | 350,018 | $ | 402,836"
+    },
+    {
+      "metric": "operating_income",
+      "row_label": "Income from operations",
+      "current_value": 129039,
+      "prior_value": 112390,
+      "column_header": "2025",
+      "snippet": "Income from operations | 84,293 | 112,390 | 129,039"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "Net income",
+      "current_value": 132170,
+      "prior_value": 100118,
+      "column_header": "2025",
+      "snippet": "Net income | $ | 73,795 | $ | 100,118 | $ | 132,170"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Diluted net income per share (Note 12)",
+      "current_value": 10.81,
+      "prior_value": 8.04,
+      "column_header": "2025",
+      "snippet": "Diluted net income per share (Note 12) | $ | 5.80 | $ | 8.04 | $ | 10.81"
+    }
+  ]
+}

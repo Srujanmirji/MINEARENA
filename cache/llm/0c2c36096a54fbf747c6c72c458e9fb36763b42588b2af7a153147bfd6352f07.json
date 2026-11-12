@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "metric": "total_assets",
+      "row_label": "Total assets(a)",
+      "current_value": 4424900,
+      "prior_value": 4002814,
+      "column_header": "2025",
+      "snippet": "Total assets(a) | $ | 4,424,900 | $ | 4,002,814"
+    },
+    {
+      "metric": "total_liabilities",
+      "row_label": "Total liabilities(a)",
+      "current_value": 4062462,
+      "prior_value": 3658056,
+      "column_header": "2025",
+      "snippet": "Total liabilities(a) | 4,062,462 | 3,658,056"
+    },
+    {
+      "metric": "equity",
+      "row_label": "Total stockholders\u2019 equity",
+      "current_value": 362438,
+      "prior_value": 344758,
+      "column_header": "2025",
+      "snippet": "Total stockholders\u2019 equity | 362,438 | 344,758"
+    },
+    {
+      "metric": "cash",
+      "row_label": "Cash and due from banks",
+      "current_value": 21742,
+      "prior_value": 23372,
+      "column_header": "2025",
+      "snippet": "Cash and due from banks | $ | 21,742 | $ | 23,372"
+    }
+  ]
+}

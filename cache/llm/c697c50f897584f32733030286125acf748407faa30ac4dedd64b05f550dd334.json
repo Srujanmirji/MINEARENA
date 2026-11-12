@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "NET SALES",
+      "current_value": 87032,
+      "prior_value": 84284,
+      "column_header": "2026",
+      "snippet": "NET SALES | $ | 87,032 | $ | 84,284 | $ | 84,039"
+    },
+    {
+      "metric": "operating_income",
+      "row_label": "OPERATING INCOME",
+      "current_value": 19748,
+      "prior_value": 20451,
+      "column_header": "2026",
+      "snippet": "OPERATING INCOME | 19,748 | 20,451 | 18,545"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "NET EARNINGS ATTRIBUTABLE TO PROCTER & GAMBLE",
+      "current_value": 16046,
+      "prior_value": 15974,
+      "column_header": "2026",
+      "snippet": "NET EARNINGS ATTRIBUTABLE TO PROCTER & GAMBLE | $ | 16,046 | $ | 15,974 | $ | 14,879"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Diluted",
+      "current_value": 6.62,
+      "prior_value": 6.51,
+      "column_header": "2026",
+      "snippet": "Diluted | $ | 6.62 | $ | 6.51 | $ | 6.02"
+    }
+  ]
+}

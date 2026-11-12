@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "Total net revenue",
+      "current_value": 182447,
+      "prior_value": 177556,
+      "column_header": "2025",
+      "snippet": "Total net revenue | 182,447 | 177,556 | 158,104"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "Net income",
+      "current_value": 57048,
+      "prior_value": 58471,
+      "column_header": "2025",
+      "snippet": "Net income | $ | 57,048 | $ | 58,471 | $ | 49,552"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Diluted earnings per share",
+      "current_value": 20.02,
+      "prior_value": 19.75,
+      "column_header": "2025",
+      "snippet": "Diluted earnings per share | 20.02 | 19.75 | 16.23"
+    }
+  ]
+}

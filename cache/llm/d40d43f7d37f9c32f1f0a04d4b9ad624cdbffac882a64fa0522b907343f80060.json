@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "Total revenues",
+      "current_value": 62579,
+      "prior_value": 63627,
+      "column_header": "2025",
+      "snippet": "Total revenues | 62,579 | 63,627 | 59,553"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "Net income attributable to Pfizer Inc. common shareholders",
+      "current_value": 7771,
+      "prior_value": 8031,
+      "column_header": "2025",
+      "snippet": "Net income attributable to Pfizer Inc. common shareholders | $ | 7,771 | $ | 8,031 | $ | 2,119"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Net income attributable to Pfizer Inc. common shareholders",
+      "current_value": 1.36,
+      "prior_value": 1.41,
+      "column_header": "2025",
+      "snippet": "Net income attributable to Pfizer Inc. common shareholders | $ | 1.36 | $ | 1.41 | $ | 0.37"
+    }
+  ]
+}

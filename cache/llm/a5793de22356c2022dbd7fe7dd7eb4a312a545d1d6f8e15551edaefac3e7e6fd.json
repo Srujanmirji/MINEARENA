@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "metric": "total_assets",
+      "row_label": "TOTAL ASSETS",
+      "current_value": 89045,
+      "prior_value": 77099,
+      "column_header": "August 30,2026",
+      "snippet": "TOTAL ASSETS | $ | 89,045 | $ | 77,099"
+    },
+    {
+      "metric": "total_liabilities",
+      "row_label": "TOTAL LIABILITIES",
+      "current_value": 53242,
+      "prior_value": 47935,
+      "column_header": "August 30,2026",
+      "snippet": "TOTAL LIABILITIES | 53,242 | 47,935"
+    },
+    {
+      "metric": "equity",
+      "row_label": "TOTAL EQUITY",
+      "current_value": 35803,
+      "prior_value": 29164,
+      "column_header": "August 30,2026",
+      "snippet": "TOTAL EQUITY | 35,803 | 29,164"
+    },
+    {
+      "metric": "cash",
+      "row_label": "Cash and cash equivalents",
+      "current_value": 20207,
+      "prior_value": 14161,
+      "column_header": "August 30,2026",
+      "snippet": "Cash and cash equivalents | $ | 20,207 | $ | 14,161"
+    }
+  ]
+}

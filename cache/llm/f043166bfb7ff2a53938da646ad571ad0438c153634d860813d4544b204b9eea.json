@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "metric": "total_assets",
+      "row_label": "Total assets",
+      "current_value": 818042,
+      "prior_value": 624894,
+      "column_header": "2025",
+      "snippet": "Total assets | $ | 624,894 | $ | 818,042"
+    },
+    {
+      "metric": "equity",
+      "row_label": "Total stockholders\u2019 equity",
+      "current_value": 411065,
+      "prior_value": 285970,
+      "column_header": "2025",
+      "snippet": "Total stockholders\u2019 equity | $ | 285,970 | $ | 411,065"
+    },
+    {
+      "metric": "cash",
+      "row_label": "Cash and cash equivalents",
+      "current_value": 86810,
+      "prior_value": 78779,
+      "column_header": "2025",
+      "snippet": "Cash and cash equivalents | $ | 78,779 | $ | 86,810"
+    }
+  ]
+}

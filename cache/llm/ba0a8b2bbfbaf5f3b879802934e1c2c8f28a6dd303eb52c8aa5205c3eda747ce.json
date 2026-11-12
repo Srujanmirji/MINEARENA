@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "metric": "operating_cash_flow",
+      "row_label": "TOTAL OPERATING ACTIVITIES",
+      "current_value": 19556,
+      "prior_value": 17817,
+      "column_header": "2026",
+      "snippet": "TOTAL OPERATING ACTIVITIES | 19,556 | 17,817 | 19,846"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "metric": "cash",
+      "row_label": "Cash and cash equivalents",
+      "current_value": 1142,
+      "prior_value": 1043,
+      "column_header": "2025",
+      "snippet": "Cash and cash equivalents | $ | 1,142 | $ | 1,043"
+    },
+    {
+      "metric": "total_assets",
+      "row_label": "Total assets",
+      "current_value": 208160,
+      "prior_value": 213396,
+      "column_header": "2025",
+      "snippet": "Total assets | $ | 208,160 | $ | 213,396"
+    },
+    {
+      "metric": "total_liabilities",
+      "row_label": "Total liabilities",
+      "current_value": 121385,
+      "prior_value": 124899,
+      "column_header": "2025",
+      "snippet": "Total liabilities | 121,385 | 124,899"
+    },
+    {
+      "metric": "equity",
+      "row_label": "Total Pfizer Inc. shareholders\u2019 equity",
+      "current_value": 86476,
+      "prior_value": 88203,
+      "column_header": "2025",
+      "snippet": "Total Pfizer Inc. shareholders\u2019 equity | 86,476 | 88,203"
+    }
+  ]
+}

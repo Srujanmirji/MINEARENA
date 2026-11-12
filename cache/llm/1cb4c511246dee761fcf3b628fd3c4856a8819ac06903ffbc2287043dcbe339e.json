@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "metric": "operating_cash_flow",
+      "row_label": "Net cash provided by operating activities",
+      "current_value": 16325,
+      "prior_value": 19810,
+      "column_header": "2025",
+      "snippet": "Net cash provided by operating activities | 16,325 | 19,810 | 21,172"
+    }
+  ]
+}

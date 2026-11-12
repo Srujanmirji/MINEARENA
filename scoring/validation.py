@@ -12,6 +12,7 @@ SEGMENTS = "Segment sum"
 YOY = "Year-on-year"
 SCALE = "Scale sanity"
 SIGN = "Sign"
+UNITS = "Units"
 
 BALANCE = ("total_assets", "total_liabilities", "equity")
 MUST_BE_POSITIVE = ("revenue", "total_assets", "total_liabilities")
@@ -71,6 +72,17 @@ def check_scale(v: ExtractedValue) -> dict:
     return _result(SCALE, "hard", "passed", "same order of magnitude as prior")
 
 
+def check_units(v: ExtractedValue) -> dict:
+    """Hard: a dollar value whose table scale ("in millions"/"in thousands") was not found.
+    Scale sanity can't see it (value and prior share the same wrong scale), and a 10-K reported
+    in whole dollars is rare, so a human confirms. Found by testing Pfizer and Home Depot."""
+    if v.value is None or v.unit != "USD":
+        return _result(UNITS, "hard", "na", "per-share or missing value")
+    if v.scale > 1:
+        return _result(UNITS, "hard", "passed", f"table scale found (×{v.scale:,})")
+    return _result(UNITS, "hard", "failed", "table scale not found: check whether the table is in millions or thousands")
+
+
 def check_sign(v: ExtractedValue) -> dict:
     if v.value is None:
         return _result(SIGN, "hard", "na", "no value")
@@ -94,7 +106,7 @@ def _validate_one_filing(values: list[ExtractedValue], segments: list[dict], cfg
             results.append(equation)
         if v.metric == "revenue":
             results.append(segment)
-        results += [check_yoy(v, yoy_threshold), check_scale(v)]
+        results += [check_yoy(v, yoy_threshold), check_scale(v), check_units(v)]
         if v.metric in MUST_BE_POSITIVE:
             results.append(check_sign(v))
         out.append(v.model_copy(update={"validation": [dict(r) for r in results]}))
