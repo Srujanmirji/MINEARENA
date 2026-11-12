@@ -113,3 +113,4 @@ if __name__ == "__main__":
         print("[llm] Smoke test result:", res)
     except Exception as exc:
         print(f"[llm] Smoke test note (expected if no API key set): {exc}")
+

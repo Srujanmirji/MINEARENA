@@ -165,3 +165,4 @@ if __name__ == "__main__":
 
     print("=" * 80)
     print("[locate] ALL 5 COMPANIES LOCATED ALL 3 PRIMARY STATEMENTS SUCCESSFULLY!")
+

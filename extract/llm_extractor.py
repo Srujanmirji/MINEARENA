@@ -100,3 +100,4 @@ if __name__ == "__main__":
     print("[llm_extractor] Plain text preview:")
     print(_table_to_plain_text(test_html))
     print("[llm_extractor] Smoke test complete.")
+

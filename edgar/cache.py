@@ -95,3 +95,4 @@ if __name__ == "__main__":
     assert c1 == c2
     assert calls1 == calls2
     print("[cache] Cache smoke test PASSED (zero network calls on 2nd fetch)")
+

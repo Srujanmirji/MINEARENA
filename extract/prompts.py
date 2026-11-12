@@ -12,3 +12,4 @@ Rules:
 Return JSON: {{"items": [{{"metric": "...", "row_label": "...", "current_value": number, "prior_value": number|null,
                          "column_header": "...", "snippet": "..."}}]}}
 """
+

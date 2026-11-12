@@ -170,3 +170,4 @@ if __name__ == "__main__":
     print("[table_parser] Extracted income metrics:", res)
     assert "revenue" in res
     print("[table_parser] Smoke test PASSED!")
+
