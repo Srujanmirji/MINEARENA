@@ -76,5 +76,6 @@ if __name__ == "__main__":
     assert by["MOCKA", "operating_cash_flow"].signals["agreement"] == 0.0  # extractors disagree
     assert by["MOCKB", "total_liabilities"].confidence <= DERIVED_CAP  # derived cap
     assert set(by["MOCKA", "revenue"].signals) == set(WEIGHTS)          # 3 parts, no validation term
-    assert by["MOCKA", "net_income"].signals["label"] < 0.7             # weak label is actually weak
+    from scoring.router import LABEL_FLOOR
+    assert by["MOCKA", "net_income"].signals["label"] < LABEL_FLOOR     # weak label still goes to a human
     print("[confidence] smoke test OK")
