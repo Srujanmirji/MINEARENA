@@ -87,6 +87,12 @@ Same order as the PS workflow: Step 3 confidence → Step 4 validation → Step 
 - [ ] Full report for all 5; send the mismatch list to Mayur
 - [ ] **3 AM call:** if the report isn't ready, cut all bonus features
 
+### 2:40–3:00 AM — Reliability proof (you run it, no code)
+- [ ] Copy `data/` aside, delete `data/app.db` + `data/checkpoints.db`, run all 5 companies end to end (auto-approve everything that pauses, using a script or the UI)
+- [ ] Do it a **second time** from clean. Record: crashes (target 0), identical extracted values both runs (target yes), wrong auto-approvals (target 0)
+- [ ] Put the line on Sai's results slide: "5 companies, 2 full runs, 0 crashes, identical results, 0 wrong auto-approvals". Use the **real** numbers, whatever they are
+- [ ] Restore the demo `data/` afterwards
+
 ### 3:00–5:00 AM — Honest tuning + pitch numbers
 - [ ] Auto-approval error rate > 0? Find out why; fix the signal or raise the threshold
 - [ ] **Pick one threshold and keep it.** Re-tuning on the same 45 values is overfitting, and judges may ask

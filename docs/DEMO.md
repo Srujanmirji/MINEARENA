@@ -43,6 +43,23 @@ The PS says: **"All mandatory requirements must be demonstrated during evaluatio
 - [ ] Phone hotspot ready in case venue Wi-Fi dies
 - [ ] **Ask organisers the slot length.** If it's over 5 minutes, slow down at 2:15–3:20 (human review), not elsewhere
 
+## Final expectation → demo moments
+
+The PS ends with: *"Build a reliable autonomous financial auditing agent that can extract, validate, identify suspicious financial values, request human intervention when necessary, resume its workflow and maintain a verifiable audit trail."* Judges will summarise us against this sentence.
+
+| PS phrase | Shown at |
+|---|---|
+| reliable | Results slide: 2 clean full runs + the kill-and-restart (2:45) |
+| autonomous | Auto-approved vs escalated counts (4:05) + the "autonomy" answer in Q&A |
+| extract | AAPL's 9 values with source rows (1:00) |
+| validate | Validations tab (1:50) |
+| identify suspicious values | WMT pauses (2:15); escalation precision (4:05) |
+| request human intervention when necessary | Review card + Approve / Correct / Reject (2:15–3:20) |
+| resume its workflow | Kill and restart (2:45) |
+| verifiable audit trail | Verify chain + refused UPDATE (3:35) |
+
+The closing line repeats this sentence back to them.
+
 ## The 5 minutes
 
 | Time | Sai shows | Srujan says (short) |
@@ -59,7 +76,7 @@ The PS says: **"All mandatory requirements must be demonstrated during evaluatio
 | 3:20 | Point at sidebar counters | "Completed and pending reviews, tracked live." |
 | 3:35 | Audit log tab → **Verify chain**; SQLite `UPDATE audit_log SET decision='approved' WHERE seq=1;` (row `seq=1` must exist: on an empty log the UPDATE matches 0 rows and "succeeds" silently) | "Every decision: original value, corrected value, decision, timestamp. Hash-chained: chain intact. Try to edit history… the database refuses." |
 | 4:05 | Accuracy report tab | "Graded against the SEC's XBRL data: accuracy X%. N values auto-approved, M escalated. Escalation precision P%: most of what we escalated really was a problem." |
-| 4:40 | Close | "Automate the routine, escalate the uncertain, keep every decision accountable." |
+| 4:40 | Results slide line: "5 companies, 2 full runs, 0 crashes, identical results, 0 wrong auto-approvals" | "So: an autonomous agent that extracts, validates and flags suspicious values, asks a human only when necessary, resumes after a crash, and leaves a verifiable audit trail. Exactly what PS-01 asked for." |
 
 Fill X, N, M, P with the real numbers after the 3 AM report. Never use placeholder numbers in front of judges.
 
@@ -75,6 +92,8 @@ Fill X, N, M, P with the real numbers after the 3 AM report. Never use placehold
 | "How do you know the audit log wasn't edited?" | "Triggers reject UPDATE and DELETE in the database, and each row's hash includes the previous row's hash. Verify recomputes the chain and shows the first broken row." |
 | "Is escalation precision good?" | Show the number + the calibration table: "Higher confidence bands are more accurate, so the score means something." |
 | "Why these 5 companies?" | "Chosen to stress the system: a clean baseline (Apple), segments (Microsoft), a genuine growth anomaly (NVIDIA), and two companies with noncontrolling interest that make the equity line ambiguous (Walmart, Tesla)." |
+| "Isn't this just a fixed pipeline? Where's the autonomy?" | "Nobody tells it which values to trust. For every number it decides by itself: which extractor to believe, whether it's confident, whether it makes accounting sense, and whether a human is needed. Humans only see the ~X% it isn't sure about." (X from the 3 AM report. If the MCP bonus is done, add: "…and it calls SEC tools itself.") |
+| "How do you know it's reliable?" | "We ran all 5 companies end to end twice from a clean database: zero crashes, identical results, zero wrong values auto-approved. And you just saw it survive a server crash." |
 | "What would you do with more time?" | "Adaptive thresholds from reviewer feedback, 10-Q support, MCP tools so other agents can call the auditor, and multi-period variance explanations." |
 | "Segment validation?" | "Where a segment note exists we sum the segment revenues and compare them to total revenue. Where it doesn't, we show N/A rather than a fake pass." |
 
