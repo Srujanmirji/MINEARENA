@@ -62,6 +62,7 @@ export function App() {
 
     if (isDashboardOpen) {
       lenis.stop();
+      document.documentElement.classList.remove('lenis-stopped');
     } else {
       lenis.start();
     }

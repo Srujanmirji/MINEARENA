@@ -50,8 +50,8 @@ export function RunsTab({ onReview, onConfigChange, config }: Props) {
   const sum = (k: 'n_auto' | 'n_pending' | 'n_reviewed') => list.reduce((s, r) => s + r[k], 0);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <header className="animate-dashboard-item flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
             Filing runs
@@ -76,7 +76,7 @@ export function RunsTab({ onReview, onConfigChange, config }: Props) {
       {/* Start a Run Interactive Control Panel */}
       <section
         aria-labelledby="start-heading"
-        className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/80 p-6 md:p-7 shadow-xs hover:shadow-md transition-shadow duration-300 relative overflow-hidden"
+        className="animate-dashboard-item delay-75 bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/80 p-6 md:p-7 shadow-xs hover:shadow-md transition-shadow duration-300 relative overflow-hidden"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export function RunsTab({ onReview, onConfigChange, config }: Props) {
       </section>
 
       {/* 4 Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="animate-dashboard-item delay-150 grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Runs active" value={String(list.length)} />
         <StatCard label="Auto-approved values" value={String(sum('n_auto'))} tone="text-emerald-600" />
         <StatCard label="Waiting for review" value={String(sum('n_pending'))} tone="text-amber-600" />
@@ -139,7 +139,7 @@ export function RunsTab({ onReview, onConfigChange, config }: Props) {
 
       {/* Runs Table */}
       {list.length > 0 && (
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-gray-200/80 shadow-xs overflow-hidden">
+        <div className="animate-dashboard-item delay-225 bg-white/90 backdrop-blur-sm rounded-2xl border border-gray-200/80 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm min-w-[42rem]">
               <thead className="bg-gray-50/80 text-xs text-gray-500 font-bold uppercase tracking-wider border-b border-gray-200">
@@ -236,7 +236,7 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
   return (
     <section
       aria-labelledby="settings-heading"
-      className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/80 p-6 md:p-7 shadow-xs hover:shadow-md transition-shadow duration-300"
+      className="animate-dashboard-item delay-300 bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/80 p-6 md:p-7 shadow-xs hover:shadow-md transition-shadow duration-300"
     >
       <div className="flex items-center justify-between mb-2">
         <h2 id="settings-heading" className="text-base font-bold text-gray-900">

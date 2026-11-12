@@ -318,6 +318,54 @@ html.lenis body {
   box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.12);
 }
 
+/* ==========================================================================
+   Dashboard Custom Smooth Scrollbar & Animations
+   ========================================================================== */
+
+.dashboard-scroll {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.22) transparent;
+}
+
+.dashboard-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.38);
+  background-clip: padding-box;
+}
+
+/* Staggered entrance animations for dashboard components */
+@keyframes dashboardItemEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-dashboard-item {
+  animation: dashboardItemEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
 /* Respect the OS "reduce motion" setting: no marquees, glows or slide-ins. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

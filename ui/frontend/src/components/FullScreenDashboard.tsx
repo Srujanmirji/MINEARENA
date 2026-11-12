@@ -71,12 +71,13 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({ onClos
       role="dialog"
       aria-modal="true"
       aria-label="AuditLoop reviewer dashboard"
-      className={`fixed inset-0 z-50 flex flex-col md:flex-row bg-[#F8FAFC] text-gray-900 antialiased ${
+      data-lenis-prevent="true"
+      className={`fixed inset-0 z-50 flex flex-col md:flex-row h-screen w-screen max-h-screen max-w-full overflow-hidden bg-[#F8FAFC] text-gray-900 antialiased ${
         isExiting ? 'animate-dashboard-exit' : 'animate-dashboard-enter'
       }`}
     >
       {/* Sleek Dark Glass Sidebar */}
-      <aside className="md:w-68 bg-gradient-to-b from-[#0F1420] via-[#0B0F17] to-[#070A10] border-r border-white/10 flex md:flex-col justify-between gap-4 p-4 md:p-6 text-gray-300 shrink-0 shadow-2xl relative z-10">
+      <aside className="md:w-68 max-h-screen overflow-y-auto bg-gradient-to-b from-[#0F1420] via-[#0B0F17] to-[#070A10] border-r border-white/10 flex md:flex-col justify-between gap-4 p-4 md:p-6 text-gray-300 shrink-0 shadow-2xl relative z-10">
         <div className="min-w-0">
           {/* Logo & Brand Header */}
           <div className="hidden md:flex items-center gap-3 px-2 py-3 mb-6">
@@ -159,7 +160,10 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({ onClos
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto scroll-smooth p-4 sm:p-8 md:p-10 relative">
+      <main
+        data-lenis-prevent="true"
+        className="flex-1 min-h-0 h-full max-h-full overflow-y-auto dashboard-scroll overscroll-contain p-4 sm:p-8 md:p-10 relative"
+      >
         {/* Floating Top Header Bar with Close Button */}
         <div className="max-w-6xl mx-auto flex justify-end mb-4">
           <button
