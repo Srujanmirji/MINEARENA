@@ -99,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/45 via-white/10 to-transparent pointer-events-none" />
 
         <div className="relative z-10 flex items-center justify-between gap-3">
-          {/* Left: Brand Icon + Title + Live Engine Badge */}
+          {/* Left: Brand Icon + Title */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <a
               href="#"
@@ -116,16 +116,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 AuditLoop
               </span>
             </a>
-
-            {/* Glassy Live Engine Badge */}
-            <span
-              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-800 border border-emerald-500/25 backdrop-blur-xs transition-opacity duration-300 ${
-                scrolled ? 'lg:inline-flex' : 'inline-flex'
-              }`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              SEC Live
-            </span>
           </div>
 
           {/* Center: Frosted Glass Nav Links Track */}
