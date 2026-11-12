@@ -84,7 +84,8 @@ Put these tests in `api/test_flow.py` (plain `httpx` script or pytest). Run them
 ### 7:30 AM onward — Freeze + backup driver
 - [ ] Bug fixes only. Run `api/test_flow.py` one last time
 - [ ] Learn the demo (`docs/DEMO.md`); you're the backup driver and you own the kill-and-restart moment
-- [ ] Bonus B-3 (MCP tools with FastMCP) **only** if everything above is green and Srujan agrees
+- [ ] Bonus B-3 (MCP tools) **only** if everything above is green and Srujan agrees. Add `mcp` to requirements (tell the group). FastMCP server with `get_filing` + `get_xbrl_fact`; extraction steps get `get_filing` only, **only `verify_vs_xbrl` gets `get_xbrl_fact`** (PRD bonus table)
+- [ ] Bonus B-1 (after B-3): global adaptive threshold per the PRD bonus table. Write the new threshold to the `config` table; never relax validation; show the before/after table in the report
 
 ---
 

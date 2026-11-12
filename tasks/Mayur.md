@@ -103,7 +103,8 @@ If the primary-document locator fails for 2 or more companies, switch `locate.py
 
 ### 5:00–7:30 AM
 - [ ] Re-run all 5 to make sure `cache/` is complete; commit `cache/`
-- [ ] Bonus B-2: `extract/explain.py`: 2-sentence AI explanation per YoY anomaly from the filing's MD&A text (labelled "AI-generated")
+- [ ] Bonus B-2 (do first): `extract/explain.py`: 2-sentence AI explanation per YoY/variance flag from the filing's MD&A text (labelled "AI-generated"). Never pass XBRL data to it
+- [ ] Bonus B-4 data: fill `history` = `{period_end: value}` for **every** year column the statement shows (income + cash flow usually 3 years, balance sheet 2). Sai charts it
 
 ### 7:30 AM onward — Freeze
 - [ ] Bug fixes only; rehearse the answers to "why not use XBRL directly?" and "how do you stop hallucinated numbers?" (`docs/DEMO.md`)

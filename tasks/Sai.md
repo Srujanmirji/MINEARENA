@@ -59,7 +59,7 @@ You do not write backend code. Everything you need comes through `ui/api_client.
 - [ ] Readability pass: everything on the review card readable from 2 m away
 - [ ] Empty states: "No items waiting for review", "Run a company to see results"
 - [ ] **Slides** (Google Slides is fine): 1 title · 1 problem · 1 architecture (redraw `docs/ARCHITECTURE.md` §1 cleanly) · 1 results (numbers from Srujan) · 1 closing line
-- [ ] Bonus B-4 (3-year variance chart per metric) only if everything is green
+- [ ] Bonus B-4 (3-year variance chart per metric from each value's `history`) only if everything is green
 
 ### 7:00 AM onward — Freeze + rehearsal
 - [ ] No new features. Rehearse `docs/DEMO.md` twice as the driver, with Srujan presenting

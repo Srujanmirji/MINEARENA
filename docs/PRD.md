@@ -162,13 +162,20 @@ Runs **after** confidence scoring, matching PS workflow Steps 3 → 4.
 
 **Accept:** an `UPDATE audit_log ...` in a SQLite shell fails; Verify chain returns OK.
 
-### Bonus (only after the 3 AM checkpoint passes)
+### Bonus (only after the 3 AM checkpoint passes; nothing new after 7 AM)
 | ID | Feature | Owner | Effort |
 |---|---|---|---|
-| B-1 | Adaptive thresholds: if reviewers approve 90%+ of a metric's escalations in a score band unchanged (min 5 reviews), lower that metric's threshold by 0.02 (floor 0.75); never relax hard rules | Srujan | 1 h |
-| B-2 | AI explanation of each year-on-year anomaly from the filing's MD&A text (2 sentences, labelled AI-generated) | Mayur | 1 h |
-| B-3 | EDGAR fetch + XBRL lookup as MCP tools (FastMCP) | Zeeshan | 1–2 h |
-| B-4 | Multi-period variance chart (3 years per metric) | Sai | 1 h |
+| Order | ID | Feature | Owner | Effort |
+|---|---|---|---|---|
+| 1 | B-2 | **AI explanation of anomalies:** 2 sentences per YoY/variance flag, written from the filing's own MD&A text, labelled "AI-generated", shown on the review card. Never uses XBRL | Mayur | 1 h |
+| 2 | B-4 | **Multi-period variance:** keep **every year column** the statement shows (3 years for income + cash flow, 2 for balance sheet) in `history`; chart 3 years per metric; flag unusual variation across all periods, not just the last one | Mayur (data) + Sai (chart) | 1 h |
+| 3 | B-3 | **MCP tools with per-step access:** FastMCP server exposing `get_filing` and `get_xbrl_fact`. Extraction steps are given `get_filing` only; **only the verify step is given `get_xbrl_fact`**, so the agent can call XBRL itself but never before human review | Zeeshan | 1–2 h |
+| 4 | B-1 | **Adaptive escalation threshold (global):** after ≥ 5 reviews in total, if ≥ 90% of escalations that failed *only* on confidence were approved unchanged, lower the global threshold by 0.02 (floor 0.75). Validation failures always escalate, whatever the threshold. Show a before/after table: escalations ↓, wrong auto-approvals still 0 | Zeeshan (after B-3) | 1 h |
+
+Why these designs:
+- **B-3:** an XBRL tool the LLM can call at any time would let it read the answer key during extraction or review. Scoping tools per step keeps the accuracy test honest; say so in the pitch.
+- **B-1:** per-metric adaptation needs ≥ 5 reviews *per metric*. With ~45 values and ~10 escalations spread over 9 metrics that never happens, so the feature would never visibly act. A global threshold does.
+- **B-4:** 10-K tables already contain prior years, so multi-period analysis needs no extra filings.
 
 ## 8. Non-functional requirements
 

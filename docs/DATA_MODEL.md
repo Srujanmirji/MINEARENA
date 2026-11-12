@@ -46,6 +46,7 @@ class ExtractedValue(BaseModel):
     period_end: str                          # ISO date
 
     prior_value: float | None = None         # same metric, prior-year column (for YoY + scale sanity)
+    history: dict[str, float] = Field(default_factory=dict)  # bonus B-4: {period_end: value} for every year column in the table
     extractor: str = "llm"                   # which extractor produced `value`: "parser" (A) | "llm" (B)
     alt_value: float | None = None           # the OTHER extractor's answer (for the agreement signal)
 

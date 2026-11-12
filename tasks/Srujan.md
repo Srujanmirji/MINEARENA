@@ -6,7 +6,7 @@
 ## Your mission
 Decide **which values a human must see**, **prove how good the system is**, and **make every decision tamper-evident**. You own judging criteria 2 (confidence), 3 (auto vs escalate), 4 (escalation precision), 7 (auditability) and the numbers behind 1 (accuracy). You present the pitch and run the team's checkpoints.
 
-**Heaviest load on the team.** Protect your time: Sai handles the organisers, the slides and the demo clicks. If you fall behind, cut bonus B-1 first, then the segment check (show N/A).
+**Heaviest load on the team.** Protect your time: Sai handles the organisers, the slides and the demo clicks. Bonus B-1 has moved to Zeeshan, so you have no bonus work. If you fall behind, cut the segment check (show N/A).
 
 ## You depend on
 | From | What | When | Until then |
@@ -98,7 +98,7 @@ Same order as the PS workflow: Step 3 confidence → Step 4 validation → Step 
 ### 7:00 AM — **Feature freeze** (you announce it)
 - [ ] Set up the demo state (`docs/DEMO.md` checklist); make sure `cache/` is committed
 - [ ] Rehearse twice with a timer: you present, Sai drives, Zeeshan does the kill-and-restart
-- [ ] Bonus B-1 (adaptive thresholds) **only** if everything is green before 7 AM, otherwise drop it
+- [ ] No bonus work for you. B-1 moved to Zeeshan. Use any spare time to rehearse
 
 ---
 
