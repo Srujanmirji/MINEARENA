@@ -153,6 +153,46 @@ def verify_chain() -> dict:
     return {"ok": True, "rows": len(rows), "broken_at_seq": None}
 
 
+def test_tamper_attempt() -> dict:
+    """Safely verify that the BEFORE UPDATE SQLite trigger blocks tampering (never writes)."""
+    conn = _connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT seq FROM audit_log ORDER BY seq ASC LIMIT 1").fetchone()
+        if row is None:
+            return {
+                "blocked": False,
+                "empty": True,
+                "seq": None,
+                "sql": None,
+                "error": "Audit log is empty (no row seq=1 yet). Complete or auto-approve a run first.",
+            }
+        sql = f"UPDATE audit_log SET decision='tampered' WHERE seq={row['seq']}"
+        try:
+            conn.execute("UPDATE audit_log SET decision='tampered' WHERE seq = ?", (row["seq"],))
+            return {
+                "blocked": False,
+                "empty": False,
+                "seq": row["seq"],
+                "sql": sql,
+                "error": "Trigger did not block UPDATE!",
+            }
+        except sqlite3.DatabaseError as e:
+            return {
+                "blocked": True,
+                "empty": False,
+                "seq": row["seq"],
+                "sql": sql,
+                "error": f"{type(e).__name__}: {e}",
+            }
+    finally:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        conn.close()
+
+
 if __name__ == "__main__":
     import tempfile
 

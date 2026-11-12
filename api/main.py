@@ -427,6 +427,15 @@ def audit_verify() -> dict:
     return verify_chain()
 
 
+@app.post("/audit/tamper-test")
+def audit_tamper_test() -> dict:
+    try:
+        from audit.log import test_tamper_attempt
+    except ImportError:
+        raise HTTPException(status_code=503, detail="audit module not available")
+    return test_tamper_attempt()
+
+
 SCALE_TEXT = {1_000_000_000: "(In billions)", 1_000_000: "(In millions)", 1_000: "(In thousands)"}
 _NUMERIC = re.compile(r"[\d$,.()%\s—–-]*")
 

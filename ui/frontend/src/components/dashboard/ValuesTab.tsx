@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { api, type ExtractedValue, type Metric, type SegmentItem } from '../../api';
-import { CHECK_STYLE, METRIC_LABEL, STATUS_STYLE, TICKERS, tableNumber, unitText } from './format';
+import { CHECK_STYLE, METRIC_LABEL, STATUS_STYLE, TICKERS, errorText, tableNumber, unitText } from './format';
 import { Empty, ErrorBox, Loading } from './states';
 import { useApi } from './useApi';
 import { RunAuditPanel } from './RunAuditPanel';
+import { SourceEvidence } from './SourceEvidence';
 
 const ALL_METRICS: Metric[] = [
   'revenue', 'gross_profit', 'operating_income', 'net_income', 'eps_diluted',
@@ -77,6 +78,7 @@ export function ValuesTab() {
           )}
           {rows.length > 0 && <FilingSummary rows={rows} />}
           {rows.length > 0 && <FinancialRatios rows={rows} />}
+          {rows.length > 0 && <MultiPeriodVariance ticker={shown} rows={rows} />}
           {segments.length > 0 && <SegmentBreakdown ticker={shown} revenue={rows.find((r) => r.metric === 'revenue')} segments={segments} />}
           {rows.length > 0 && rows[0].thread_id && (
             <RunAuditPanel key={rows[0].thread_id} threadId={rows[0].thread_id}
@@ -145,6 +147,150 @@ function FinancialRatios({ rows }: { rows: ExtractedValue[] }) {
             <div className="text-[11px] text-gray-500 mt-0.5">{r.sub}</div>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function MultiPeriodVariance({ ticker, rows }: { ticker: string; rows: ExtractedValue[] }) {
+  const [explanations, setExplanations] = useState<Record<string, { text?: string; source?: string; loading?: boolean; error?: string }>>({});
+
+  // Collect all reporting years present in v.history across rows (sorted oldest -> newest)
+  const yearsSet = new Set<string>();
+  for (const r of rows) {
+    if (r.history) {
+      for (const y of Object.keys(r.history)) yearsSet.add(y);
+    }
+  }
+  const years = [...yearsSet].sort();
+
+  const comparable = rows.filter((r) => {
+    const cur = r.final_value ?? r.value;
+    return cur !== null && (r.prior_value !== null || (r.history && Object.keys(r.history).length >= 2));
+  });
+  if (comparable.length === 0) return null;
+
+  const anomalyCount = comparable.filter((r) =>
+    r.validation.some((c) => c.check === 'Year-on-year' && c.status === 'failed'),
+  ).length;
+
+  async function explain(v: ExtractedValue) {
+    if (!v.thread_id) return;
+    setExplanations((prev) => ({ ...prev, [v.id]: { loading: true } }));
+    try {
+      const res = await api.explain(v.thread_id, v.id);
+      setExplanations((prev) => ({ ...prev, [v.id]: { text: res.explanation, source: res.source } }));
+    } catch (e: unknown) {
+      setExplanations((prev) => ({ ...prev, [v.id]: { error: errorText(e) } }));
+    }
+  }
+
+  return (
+    <section aria-labelledby="variance-heading" className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 id="variance-heading" className="text-sm font-bold text-gray-900">
+              {ticker} Multi-Period Financial Variance Analysis
+            </h2>
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-semibold">
+              PS-01 ★ Multi-Period &amp; AI MD&amp;A
+            </span>
+          </div>
+          <p className="text-xs text-gray-600 mt-0.5">
+            Compares metrics across reporting periods ({years.length >= 2 ? years.join(' → ') : 'Prior FY → Current FY'}), flags unusual YoY swings, and generates AI explanations from Item 7 (MD&amp;A).
+          </p>
+        </div>
+        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${anomalyCount > 0 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}`}>
+          {anomalyCount > 0 ? `${anomalyCount} unusual YoY variation${anomalyCount > 1 ? 's' : ''} flagged` : 'All YoY variations within threshold'}
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs tabular-nums">
+          <thead className="bg-gray-50 text-gray-600 font-semibold border-y border-gray-200">
+            <tr>
+              <th scope="col" className="py-2 px-3">Metric</th>
+              {years.length >= 2 ? (
+                years.map((y) => (
+                  <th scope="col" key={y} className="py-2 px-3 text-right">FY {y}</th>
+                ))
+              ) : (
+                <>
+                  <th scope="col" className="py-2 px-3 text-right">Prior FY</th>
+                  <th scope="col" className="py-2 px-3 text-right">Current FY</th>
+                </>
+              )}
+              <th scope="col" className="py-2 px-3 text-right">YoY Δ</th>
+              <th scope="col" className="py-2 px-3">Variation Status &amp; AI MD&amp;A Explanation</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {comparable.map((v) => {
+              const cur = v.final_value ?? v.value;
+              const prior = v.prior_value;
+              const yoyPct = cur !== null && prior !== null && prior !== 0 ? ((cur - prior) / Math.abs(prior)) * 100 : null;
+              const yoyFailed = v.validation.some((c) => c.check === 'Year-on-year' && c.status === 'failed');
+              const exp = explanations[v.id];
+              return (
+                <tr key={v.id} className={yoyFailed ? 'bg-amber-50/40' : ''}>
+                  <th scope="row" className="py-2.5 px-3 font-semibold text-gray-900">
+                    {METRIC_LABEL[v.metric]}
+                    <span className="ml-1.5 text-[10px] font-normal text-gray-500">({unitText(v)})</span>
+                  </th>
+                  {years.length >= 2 ? (
+                    years.map((y, idx) => {
+                      const hVal = idx === years.length - 1 ? cur : (v.history?.[y] ?? null);
+                      return (
+                        <td key={y} className={`py-2.5 px-3 text-right ${idx === years.length - 1 ? 'font-bold text-gray-900' : 'text-gray-600'}`}>
+                          {hVal !== null && hVal !== undefined ? tableNumber(v, hVal) : '—'}
+                        </td>
+                      );
+                    })
+                  ) : (
+                    <>
+                      <td className="py-2.5 px-3 text-right text-gray-600">{tableNumber(v, prior)}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-gray-900">{tableNumber(v, cur)}</td>
+                    </>
+                  )}
+                  <td className="py-2.5 px-3 text-right font-mono font-bold">
+                    {yoyPct !== null ? (
+                      <span className={yoyFailed ? 'text-amber-800' : yoyPct >= 0 ? 'text-emerald-700' : 'text-gray-700'}>
+                        {yoyPct >= 0 ? `+${yoyPct.toFixed(1)}%` : `${yoyPct.toFixed(1)}%`}
+                      </span>
+                    ) : '—'}
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${yoyFailed ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-50 text-emerald-800'}`}>
+                        {yoyFailed ? 'Unusual variation' : 'Normal range'}
+                      </span>
+                      {v.thread_id && prior !== null && !exp?.text && (
+                        <button
+                          type="button"
+                          disabled={exp?.loading}
+                          onClick={() => explain(v)}
+                          className="px-2.5 py-0.5 rounded-full border border-gray-300 bg-white hover:bg-gray-50 text-[11px] font-semibold text-gray-800 disabled:opacity-50 cursor-pointer"
+                        >
+                          {exp?.loading ? 'Reading Item 7 MD&A…' : 'AI Explain (MD&A)'}
+                        </button>
+                      )}
+                    </div>
+                    {exp?.text && (
+                      <div className="mt-1.5 rounded-lg bg-white border border-gray-200 p-2.5 text-xs text-gray-800 leading-relaxed max-w-xl">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-0.5">
+                          AI-Generated · {exp.source}
+                        </div>
+                        {exp.text}
+                      </div>
+                    )}
+                    {exp?.error && <div className="mt-1 text-xs text-red-700">{exp.error}</div>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </section>
   );
@@ -266,39 +412,127 @@ function FilingSummary({ rows }: { rows: ExtractedValue[] }) {
 }
 
 function ValueRow({ v }: { v: ExtractedValue }) {
+  const [showSource, setShowSource] = useState(false);
+  const [explainText, setExplainText] = useState<string | null>(null);
+  const [explaining, setExplaining] = useState(false);
+  const [explainErr, setExplainErr] = useState<string | null>(null);
+
   const status = STATUS_STYLE[v.status];
   const final = v.final_value ?? v.value;
+  const yoyPct =
+    final !== null && v.prior_value !== null && v.prior_value !== 0
+      ? ((final - v.prior_value) / Math.abs(v.prior_value)) * 100
+      : null;
+  const histEntries = v.history ? Object.entries(v.history).sort(([a], [b]) => a.localeCompare(b)) : [];
+  const yoyFailed = v.validation.some((c) => c.check === 'Year-on-year' && c.status === 'failed');
+
+  async function loadExplain() {
+    if (!v.thread_id) return;
+    setExplaining(true);
+    setExplainErr(null);
+    try {
+      const res = await api.explain(v.thread_id, v.id);
+      setExplainText(res.explanation);
+    } catch (e: unknown) {
+      setExplainErr(errorText(e));
+    } finally {
+      setExplaining(false);
+    }
+  }
+
   return (
-    <tr>
-      <th scope="row" className="py-3 px-4 font-semibold text-gray-900">{METRIC_LABEL[v.metric]}</th>
-      <td className="py-3 px-4 text-right tabular-nums">
-        <div className="font-semibold">{tableNumber(v, final)}</div>
-        <div className="text-xs text-gray-600">{unitText(v)}</div>
-        {v.prior_value !== null && <div className="text-xs text-gray-500">prior {tableNumber(v, v.prior_value)}</div>}
-        {v.status === 'corrected' && <div className="text-xs text-blue-700">was {tableNumber(v, v.value)}</div>}
-      </td>
-      <td className="py-3 px-4 text-xs text-gray-700">{v.period_start ? `${v.period_start} → ` : 'as of '}{v.period_end}</td>
-      <td className="py-3 px-4 text-xs text-gray-700 max-w-[14rem]">{v.row_label || '—'}{v.is_derived && <span className="ml-1 text-amber-800">(derived)</span>}</td>
-      <td className="py-3 px-4 text-right tabular-nums font-semibold">
-        {v.confidence.toFixed(2)}
-        <ConfidenceBars v={v} />
-      </td>
-      <td className="py-3 px-4">
-        <ul className="space-y-1">
-          {v.validation.map((c) => (
-            <li key={c.check} className="text-xs flex items-start gap-1.5" title={c.detail}>
-              <span className={`px-1.5 rounded font-semibold shrink-0 ${CHECK_STYLE[c.status].cls}`}>{CHECK_STYLE[c.status].label}</span>
-              <span className="text-gray-700">{c.check}</span>
-            </li>
-          ))}
-        </ul>
-      </td>
-      <td className="py-3 px-4">
-        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${status.cls}`}>{status.label}</span>
-        {v.escalation_reason && v.status !== 'auto_approved' && <div className="text-xs text-gray-600 mt-1 max-w-[16rem]">{v.escalation_reason}</div>}
-        {v.status === 'auto_approved' && <WhyApproved v={v} />}
-      </td>
-    </tr>
+    <>
+      <tr>
+        <th scope="row" className="py-3 px-4 font-semibold text-gray-900">{METRIC_LABEL[v.metric]}</th>
+        <td className="py-3 px-4 text-right tabular-nums">
+          <div className="font-semibold">{tableNumber(v, final)}</div>
+          <div className="text-xs text-gray-600">{unitText(v)}</div>
+          {v.prior_value !== null && (
+            <div className="text-xs text-gray-500">
+              prior {tableNumber(v, v.prior_value)}
+              {yoyPct !== null && (
+                <span className={`ml-1 font-semibold ${yoyFailed ? 'text-amber-800' : 'text-gray-600'}`}>
+                  ({yoyPct >= 0 ? `+${yoyPct.toFixed(1)}%` : `${yoyPct.toFixed(1)}%`})
+                </span>
+              )}
+            </div>
+          )}
+          {histEntries.length >= 2 && (
+            <div className="text-[11px] text-gray-500 mt-0.5">
+              {histEntries.map(([yr, val]) => `FY${yr.slice(-2)}: ${tableNumber(v, val)}`).join(' · ')}
+            </div>
+          )}
+          {v.status === 'corrected' && <div className="text-xs text-blue-700">was {tableNumber(v, v.value)}</div>}
+        </td>
+        <td className="py-3 px-4 text-xs text-gray-700">{v.period_start ? `${v.period_start} → ` : 'as of '}{v.period_end}</td>
+        <td className="py-3 px-4 text-xs text-gray-700 max-w-[16rem] space-y-1">
+          <div>
+            {v.row_label || '—'}
+            {v.is_derived && <span className="ml-1 text-amber-800 font-semibold">(derived)</span>}
+          </div>
+          {v.source_snippet && (
+            <details className="text-[11px] text-gray-500">
+              <summary className="cursor-pointer hover:text-gray-800 font-medium">Raw snippet</summary>
+              <div className="mt-1 font-mono bg-gray-50 border border-gray-200 rounded p-1.5 text-gray-700 break-words">
+                {v.source_snippet}
+              </div>
+            </details>
+          )}
+          {v.thread_id && (v.table_index !== null || v.is_derived) && (
+            <button
+              type="button"
+              onClick={() => setShowSource((s) => !s)}
+              className="inline-block text-[11px] font-semibold text-blue-700 hover:underline cursor-pointer"
+            >
+              {showSource ? 'Hide 10-K table ▲' : 'View 10-K table ▼'}
+            </button>
+          )}
+        </td>
+        <td className="py-3 px-4 text-right tabular-nums font-semibold">
+          {v.confidence.toFixed(2)}
+          <ConfidenceBars v={v} />
+        </td>
+        <td className="py-3 px-4">
+          <ul className="space-y-1">
+            {v.validation.map((c) => (
+              <li key={c.check} className="text-xs flex items-start gap-1.5" title={c.detail}>
+                <span className={`px-1.5 rounded font-semibold shrink-0 ${CHECK_STYLE[c.status].cls}`}>{CHECK_STYLE[c.status].label}</span>
+                <span className="text-gray-700">{c.check}</span>
+              </li>
+            ))}
+          </ul>
+          {yoyFailed && v.thread_id && !explainText && (
+            <button
+              type="button"
+              disabled={explaining}
+              onClick={loadExplain}
+              className="mt-1.5 px-2.5 py-0.5 rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-100 text-[11px] font-semibold text-amber-900 disabled:opacity-50 cursor-pointer"
+            >
+              {explaining ? 'Reading MD&A…' : 'Explain YoY change'}
+            </button>
+          )}
+          {explainText && (
+            <div className="mt-1.5 rounded-lg bg-amber-50/70 border border-amber-200 p-2 text-xs text-gray-800 max-w-xs leading-snug">
+              <div className="text-[10px] font-bold uppercase text-amber-900 mb-0.5">AI MD&amp;A Summary</div>
+              {explainText}
+            </div>
+          )}
+          {explainErr && <div className="mt-1 text-xs text-red-700">{explainErr}</div>}
+        </td>
+        <td className="py-3 px-4">
+          <span className={`text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${status.cls}`}>{status.label}</span>
+          {v.escalation_reason && v.status !== 'auto_approved' && <div className="text-xs text-gray-600 mt-1 max-w-[16rem]">{v.escalation_reason}</div>}
+          {v.status === 'auto_approved' && <WhyApproved v={v} />}
+        </td>
+      </tr>
+      {showSource && v.thread_id && (
+        <tr className="bg-gray-50/80">
+          <td colSpan={7} className="p-4">
+            <SourceEvidence threadId={v.thread_id} value={v} />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

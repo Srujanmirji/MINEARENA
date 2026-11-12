@@ -22,6 +22,27 @@ export function AccuracyTab() {
   if (!r) return null;
   const o = r.overall;
   const wrongAuto = r.rows.filter((x) => x.status === 'auto_approved' && x.match === false).length;
+  const lift = o.accuracy !== null && o.pre_review_accuracy !== null ? o.accuracy - o.pre_review_accuracy : null;
+  const escalatedRows = r.rows.filter((x) => x.status !== 'auto_approved');
+  const reasonBuckets = [
+    { label: 'Accounting check failed (e.g., A = L + E)', rows: [] as ReportRow[] },
+    { label: 'Year-on-year swing anomaly', rows: [] as ReportRow[] },
+    { label: 'Derived formula (capped ≤ 0.75)', rows: [] as ReportRow[] },
+    { label: 'Confidence / label / missing value', rows: [] as ReportRow[] },
+  ];
+  for (const row of escalatedRows) {
+    const why = (row.escalation_reason ?? '').toLowerCase();
+    if (why.includes('a = l + e') || why.includes('equation') || why.includes('check') || why.includes('segment') || why.includes('failed')) {
+      reasonBuckets[0].rows.push(row);
+    } else if (row.yoy_anomaly || why.includes('year-on-year') || why.includes('yoy')) {
+      reasonBuckets[1].rows.push(row);
+    } else if (why.includes('derived')) {
+      reasonBuckets[2].rows.push(row);
+    } else {
+      reasonBuckets[3].rows.push(row);
+    }
+  }
+  const activeBuckets = reasonBuckets.filter((b) => b.rows.length > 0);
   const tickers = Array.from(new Set(r.rows.map((x) => x.ticker)));
   const shownRows = tickerFilter ? r.rows.filter((x) => x.ticker === tickerFilter) : r.rows;
 
@@ -45,7 +66,11 @@ export function AccuracyTab() {
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard label="Accuracy (final)" value={pct(o.accuracy)} sub={`${o.correct} of ${o.verifiable} correct · ${o.no_ground_truth} without ground truth`} />
-            <StatCard label="Before review" value={pct(o.pre_review_accuracy)} sub="Values as first extracted" />
+            <StatCard
+              label="Before review"
+              value={pct(o.pre_review_accuracy)}
+              sub={lift !== null && lift > 0 ? `+${(lift * 100).toFixed(1)}% accuracy lift after human review` : 'Values as first extracted'}
+            />
             <StatCard label="Escalation precision" value={pct(r.escalation_precision)} sub={`Of ${r.decisions.escalated} escalated: wrong or a YoY anomaly`} />
             <StatCard label="Wrong auto-approvals" value={String(wrongAuto)} sub={`of ${r.decisions.auto_approved} auto-approved (${pct(r.auto_approval_error_rate)})`} tone={wrongAuto ? 'text-red-700' : 'text-emerald-700'} />
           </div>
@@ -65,20 +90,69 @@ export function AccuracyTab() {
             <Bars title="By company" data={Object.entries(r.by_company)} />
           </div>
 
-          <section aria-labelledby="cal-heading" className="bg-white p-6 rounded-2xl border border-gray-200">
-            <h2 id="cal-heading" className="text-base font-bold text-gray-900">Calibration</h2>
-            <p className="text-xs text-gray-600 mt-0.5 mb-4">Is the confidence score honest? Accuracy of the value as extracted, by confidence band.</p>
-            <table className="w-full text-sm">
-              <thead className="text-xs text-gray-600 text-left">
-                <tr><th scope="col" className="py-2">Confidence</th><th scope="col" className="py-2 text-right">Values</th><th scope="col" className="py-2 text-right">Correct</th></tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 tabular-nums">
-                {r.calibration.map((b) => (
-                  <tr key={b.band}><td className="py-2 font-semibold">{b.band}</td><td className="py-2 text-right">{b.n}</td><td className="py-2 text-right">{pct(b.accuracy)}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <section aria-labelledby="cal-heading" className="bg-white p-6 rounded-2xl border border-gray-200">
+              <h2 id="cal-heading" className="text-base font-bold text-gray-900">Calibration</h2>
+              <p className="text-xs text-gray-600 mt-0.5 mb-4">Is the confidence score honest? Accuracy of the value as extracted, by confidence band.</p>
+              <table className="w-full text-sm">
+                <thead className="text-xs text-gray-600 text-left">
+                  <tr>
+                    <th scope="col" className="py-2">Confidence</th>
+                    <th scope="col" className="py-2 text-right">Values</th>
+                    <th scope="col" className="py-2 text-right">Accuracy</th>
+                    <th scope="col" className="py-2 pl-4 w-36">Bar</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 tabular-nums">
+                  {r.calibration.map((b) => {
+                    const ratio = b.accuracy ?? 0;
+                    const barColor = ratio >= 0.9 ? 'bg-emerald-600' : ratio >= 0.7 ? 'bg-amber-500' : 'bg-red-500';
+                    return (
+                      <tr key={b.band}>
+                        <td className="py-2.5 font-semibold">{b.band}</td>
+                        <td className="py-2.5 text-right">{b.n}</td>
+                        <td className="py-2.5 text-right font-semibold">{pct(b.accuracy)}</td>
+                        <td className="py-2.5 pl-4">
+                          <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${barColor}`} style={{ width: `${ratio * 100}%` }} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
+
+            <section aria-labelledby="esc-heading" className="bg-white p-6 rounded-2xl border border-gray-200">
+              <h2 id="esc-heading" className="text-base font-bold text-gray-900">Why Values Escalated</h2>
+              <p className="text-xs text-gray-600 mt-0.5 mb-4">Root causes across all {escalatedRows.length} escalated metrics in completed runs.</p>
+              {activeBuckets.length === 0 ? (
+                <p className="text-xs text-gray-500">All values auto-approved with zero escalations.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {activeBuckets.map((b) => {
+                    const share = escalatedRows.length ? b.rows.length / escalatedRows.length : 0;
+                    const corrected = b.rows.filter((row) => row.status === 'corrected').length;
+                    return (
+                      <li key={b.label}>
+                        <div className="flex justify-between text-xs font-semibold mb-1 gap-2">
+                          <span className="text-gray-800">{b.label}</span>
+                          <span className="tabular-nums shrink-0 text-gray-700">
+                            {b.rows.length} {b.rows.length === 1 ? 'item' : 'items'}
+                            {corrected > 0 ? ` · ${corrected} corrected` : ''}
+                          </span>
+                        </div>
+                        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-amber-600 rounded-full" style={{ width: `${share * 100}%` }} />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
 
           <section aria-labelledby="xbrl-heading" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">

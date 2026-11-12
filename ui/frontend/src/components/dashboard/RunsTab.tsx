@@ -462,24 +462,24 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
     }
   }
 
-  const presets: { label: string; desc: string; t: number; y: number; eq: number }[] = [
-    { label: 'Strict Audit', desc: '0.92 · 25% · 0.2%', t: 0.92, y: 0.25, eq: 0.002 },
-    { label: 'Balanced (Default)', desc: '0.85 · 40% · 0.5%', t: 0.85, y: 0.4, eq: 0.005 },
-    { label: 'Fast Pass / NCI-Tolerant', desc: '0.80 · 60% · 0.6%', t: 0.8, y: 0.6, eq: 0.006 },
+  const presets: { label: string; desc: string; detail: string; t: number; y: number; eq: number }[] = [
+    { label: 'Strict Audit', desc: '0.92 · 25% · 0.2%', detail: 'Forensic: flags minor YoY shifts & 0.2% gaps', t: 0.92, y: 0.25, eq: 0.002 },
+    { label: 'Balanced (Default)', desc: '0.85 · 40% · 0.5%', detail: 'Standard 10-K: flags NVDA YoY & TSLA 0.52% NCI', t: 0.85, y: 0.4, eq: 0.005 },
+    { label: 'Fast Pass / NCI-Tolerant', desc: '0.80 · 60% · 0.6%', detail: 'High-speed: allows 60% growth & 0.6% NCI (TSLA passes)', t: 0.8, y: 0.6, eq: 0.006 },
   ];
 
   return (
     <section
       aria-labelledby="settings-heading"
-      className="animate-dashboard-item delay-300 bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/80 p-6 md:p-7 shadow-xs hover:shadow-md transition-shadow duration-300 space-y-5"
+      className="animate-dashboard-item delay-300 bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/80 p-6 md:p-7 shadow-xs hover:shadow-md transition-shadow duration-300 space-y-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="settings-heading" className="text-base font-bold text-gray-900">
             Verification Thresholds &amp; Adaptive Calibration
           </h2>
-          <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
-            Configure when extracted 10-K metrics auto-approve vs. pause for human review. Failed validation rules always escalate.
+          <p className="text-xs text-gray-600 mt-0.5">
+            Configure when extracted 10-K metrics auto-approve vs. pause for human review.
           </p>
         </div>
 
@@ -491,6 +491,7 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
               <button
                 key={p.label}
                 type="button"
+                title={p.detail}
                 onClick={() => applyPreset(p.t, p.y, p.eq)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
                   active
@@ -505,71 +506,74 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
         </div>
       </div>
 
-      {/* Visual 3-Signal Formula Breakdown + Hard Safety Gates */}
-      <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+      {/* Short 1-Line Preset Comparison */}
+      <div className="grid sm:grid-cols-3 gap-2 text-[11px]">
+        {presets.map((p) => {
+          const active = Math.abs(t - p.t) < 1e-6 && Math.abs(y - p.y) < 1e-6 && Math.abs(eq - p.eq) < 1e-6;
+          return (
+            <div
+              key={p.label}
+              onClick={() => applyPreset(p.t, p.y, p.eq)}
+              className={`rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
+                active ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-50/70 text-gray-600 border-gray-200/80 hover:bg-gray-100'
+              }`}
+            >
+              <strong className={active ? 'text-white' : 'text-gray-900'}>{p.label.split(' ')[0]}:</strong> {p.detail}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Compact 3-Signal Formula + Safety Gates */}
+      <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 space-y-2.5 text-xs">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-xs font-bold text-gray-900">
-            How Confidence Is Calculated:{' '}
-            <code className="font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-900">
+          <div className="font-bold text-gray-900">
+            Formula:{' '}
+            <code className="font-mono bg-white px-2 py-0.5 rounded border border-gray-200">
               C = 0.45·Agreement + 0.30·Label + 0.25·Period/Unit
             </code>
           </div>
-          <span className="text-[11px] text-gray-500 font-medium">Range 0.00 – 1.00 (scored independently of validation)</span>
-        </div>
-
-        <div className="grid sm:grid-cols-3 gap-2.5 text-xs">
-          <div className="bg-white rounded-lg border border-gray-200/80 p-3">
-            <div className="flex items-center justify-between font-bold text-gray-900">
-              <span>1. Extractor Agreement (A)</span>
-              <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">45% weight</span>
-            </div>
-            <p className="text-gray-600 mt-1 leading-relaxed">
-              Compares deterministic <strong>HTML Table Parser</strong> vs. <strong>LLM Extractor</strong>. Scores <code className="font-mono">1.00</code> if within 1 table unit (<code className="font-mono">$0.01</code> for EPS), <code className="font-mono">0.50</code> if single-source, <code className="font-mono">0.00</code> if they disagree.
-            </p>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200/80 p-3">
-            <div className="flex items-center justify-between font-bold text-gray-900">
-              <span>2. Row Label Match (L)</span>
-              <span className="font-mono text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">30% weight</span>
-            </div>
-            <p className="text-gray-600 mt-1 leading-relaxed">
-              RapidFuzz <code className="font-mono">fuzz.ratio / 100</code> against GAAP synonyms. <strong>Weak-signal gate:</strong> any row with <code className="font-mono">L &lt; 0.80</code> is forced to human review even if <code className="font-mono">C ≥ {t.toFixed(2)}</code>.
-            </p>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200/80 p-3">
-            <div className="flex items-center justify-between font-bold text-gray-900">
-              <span>3. Period &amp; Unit Sanity (P)</span>
-              <span className="font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">25% weight</span>
-            </div>
-            <p className="text-gray-600 mt-1 leading-relaxed">
-              Formula: <code className="font-mono">(period_ok + scale_ok) / 2</code>. Scores <code className="font-mono">1.00</code> when the column matches the 10-K FY end and the table header scale (<code className="font-mono">in millions</code>) is detected.
-            </p>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="font-semibold text-gray-600">Hard overrides:</span>
+            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-medium">Derived ≤ 0.75</span>
+            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-medium">Label &lt; 0.80</span>
+            <span className="px-2 py-0.5 rounded bg-red-100 text-red-900 font-medium">Any failed check → Review</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
-          <span className="font-bold text-gray-700 uppercase tracking-wider">Non-negotiable safety overrides:</span>
-          <span className="px-2 py-0.5 rounded-md bg-amber-100/80 text-amber-950 border border-amber-200 font-medium">
-            Derived values (e.g. A − E) capped at C ≤ 0.75
-          </span>
-          <span className="px-2 py-0.5 rounded-md bg-amber-100/80 text-amber-950 border border-amber-200 font-medium">
-            Weak label (L &lt; 0.80) always escalates
-          </span>
-          <span className="px-2 py-0.5 rounded-md bg-red-100/70 text-red-900 border border-red-200 font-medium">
-            Any failed check (A = L + E, Segment, YoY, Scale, Opinion) always escalates
-          </span>
+        <div className="grid sm:grid-cols-3 gap-2 text-[11px]">
+          <div className="bg-white rounded-lg border border-gray-200/80 px-3 py-2">
+            <div className="flex justify-between font-bold text-gray-900">
+              <span>1. Agreement (A)</span>
+              <span className="font-mono text-blue-700">45%</span>
+            </div>
+            <p className="text-gray-600 mt-0.5">Parser vs. LLM match (<code className="font-mono">1.0</code> agree · <code className="font-mono">0.5</code> single · <code className="font-mono">0.0</code> diff)</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200/80 px-3 py-2">
+            <div className="flex justify-between font-bold text-gray-900">
+              <span>2. Label Match (L)</span>
+              <span className="font-mono text-indigo-700">30%</span>
+            </div>
+            <p className="text-gray-600 mt-0.5">RapidFuzz GAAP synonym score (must be <code className="font-mono">≥ 0.80</code>)</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200/80 px-3 py-2">
+            <div className="flex justify-between font-bold text-gray-900">
+              <span>3. Period &amp; Unit (P)</span>
+              <span className="font-mono text-emerald-700">25%</span>
+            </div>
+            <p className="text-gray-600 mt-0.5"><code className="font-mono">(period_ok + scale_ok) / 2</code> — FY end &amp; unit scale</p>
+          </div>
         </div>
       </div>
 
-      {/* 3 Configurable Sliders with Plain-English Helper Labels */}
-      <div className="grid sm:grid-cols-3 gap-5">
-        <label className="block bg-gray-50/70 p-4 rounded-xl border border-gray-200/70">
+      {/* 3 Configurable Sliders */}
+      <div className="grid sm:grid-cols-3 gap-4">
+        <label className="block bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/70">
           <span className="flex justify-between font-semibold text-gray-800 text-sm">
             <span>Auto-approve confidence</span>
             <span className="tabular-nums font-mono text-black font-bold">≥ {t.toFixed(2)}</span>
           </span>
+          <span className="block text-[11px] text-gray-500 mt-0.5">Min score C to skip human review</span>
           <input
             type="range"
             min={0.5}
@@ -577,19 +581,20 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
             step={0.01}
             value={t}
             onChange={(e) => setThreshold(Number(e.target.value))}
-            className="w-full mt-3 accent-black cursor-pointer"
+            className="w-full mt-2 accent-black cursor-pointer"
           />
           <span className="flex justify-between text-[11px] text-gray-500 mt-1">
-            <span>← More auto-approved</span>
-            <span>More human review →</span>
+            <span>← More auto</span>
+            <span>More review →</span>
           </span>
         </label>
 
-        <label className="block bg-gray-50/70 p-4 rounded-xl border border-gray-200/70">
+        <label className="block bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/70">
           <span className="flex justify-between font-semibold text-gray-800 text-sm">
             <span>Year-on-year anomaly flag</span>
             <span className="tabular-nums font-mono text-amber-600 font-bold">&gt; {Math.round(y * 100)}%</span>
           </span>
+          <span className="block text-[11px] text-gray-500 mt-0.5">Flags big FY-over-FY jumps/drops</span>
           <input
             type="range"
             min={0.1}
@@ -597,19 +602,20 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
             step={0.05}
             value={y}
             onChange={(e) => setYoy(Number(e.target.value))}
-            className="w-full mt-3 accent-black cursor-pointer"
+            className="w-full mt-2 accent-black cursor-pointer"
           />
           <span className="flex justify-between text-[11px] text-gray-500 mt-1">
-            <span>← Flag smaller swings</span>
-            <span>Allow big growth →</span>
+            <span>← Stricter</span>
+            <span>Allow growth →</span>
           </span>
         </label>
 
-        <label className="block bg-gray-50/70 p-4 rounded-xl border border-gray-200/70">
+        <label className="block bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/70">
           <span className="flex justify-between font-semibold text-gray-800 text-sm">
             <span>A = L + E &amp; segment tolerance</span>
             <span className="tabular-nums font-mono text-black font-bold">{(eq * 100).toFixed(1)}%</span>
           </span>
+          <span className="block text-[11px] text-gray-500 mt-0.5">Max Balance Sheet / Segment gap</span>
           <input
             type="range"
             min={0.001}
@@ -617,7 +623,7 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
             step={0.001}
             value={eq}
             onChange={(e) => setEqTol(Number(e.target.value))}
-            className="w-full mt-3 accent-black cursor-pointer"
+            className="w-full mt-2 accent-black cursor-pointer"
           />
           <span className="flex justify-between text-[11px] text-gray-500 mt-1">
             <span>← Strict (0.1%)</span>

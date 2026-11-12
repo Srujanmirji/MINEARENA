@@ -141,9 +141,19 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({ onClos
                 <span className="font-mono text-amber-400 text-xs font-semibold">&gt; {Math.round(config.yoy_threshold * 100)}%</span>
               </div>
             )}
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-400 pt-1 border-t border-white/5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Source: SEC EDGAR</span>
+            <div className="flex items-center justify-between text-[10px] text-gray-400 pt-1.5 border-t border-white/5">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Source: SEC EDGAR</span>
+              </span>
+              <a
+                href="/pitch.html"
+                target="_blank"
+                rel="noreferrer"
+                className="text-amber-300 hover:text-amber-200 font-semibold transition-colors"
+              >
+                Pitch Slides ↗
+              </a>
             </div>
           </div>
 

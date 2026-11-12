@@ -85,6 +85,7 @@ export interface AuditRow {
   reviewer: string; reason: string | null; prev_hash: string; hash: string;
 }
 export interface ChainCheck { ok: boolean; rows: number; broken_at_seq: number | null }
+export interface TamperCheck { blocked: boolean; empty: boolean; seq: number | null; sql: string | null; error: string }
 export interface SourceEvidence { heading: string; scale_text: string; html: string; row_found: boolean; source_url: string }
 
 export interface Accuracy { verifiable: number; correct: number; accuracy: number | null }
@@ -194,6 +195,7 @@ export const api = {
 
   audit: (limit = 200) => request<AuditRow[]>('/audit' + query({ limit })),
   verifyAudit: () => request<ChainCheck>('/audit/verify'),
+  tamperAudit: () => post<TamperCheck>('/audit/tamper-test', {}),
 
   report: (threadId?: string) => request<Report>('/report' + query({ thread_id: threadId })),
   /** Link target for the "Download CSV" button. */

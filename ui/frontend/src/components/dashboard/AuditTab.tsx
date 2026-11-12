@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { api, type AuditRow, type ChainCheck } from '../../api';
+import { api, type AuditRow, type ChainCheck, type TamperCheck } from '../../api';
 import { METRIC_LABEL, errorText, shortHash } from './format';
 import { Empty, ErrorBox, Loading } from './states';
 import { useApi } from './useApi';
@@ -20,6 +20,8 @@ export function AuditTab() {
   const [check, setCheck] = useState<ChainCheck | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
+  const [tamper, setTamper] = useState<TamperCheck | null>(null);
+  const [tampering, setTampering] = useState(false);
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>('all');
   const [tickerFilter, setTickerFilter] = useState<string>('');
 
@@ -27,6 +29,12 @@ export function AuditTab() {
     setChecking(true);
     setCheckError(null);
     try { setCheck(await api.verifyAudit()); } catch (e: unknown) { setCheckError(errorText(e)); } finally { setChecking(false); }
+  }
+
+  async function runTamperTest() {
+    setTampering(true);
+    setCheckError(null);
+    try { setTamper(await api.tamperAudit()); } catch (e: unknown) { setCheckError(errorText(e)); } finally { setTampering(false); }
   }
 
   const all = useMemo(() => rows.data ?? [], [rows.data]);
@@ -51,10 +59,16 @@ export function AuditTab() {
           <h1 className="text-3xl font-bold text-gray-900">Audit log</h1>
           <p className="text-sm text-gray-600 mt-1">Every decision, human and automatic. Append-only: the database refuses UPDATE and DELETE.</p>
         </div>
-        <button type="button" onClick={verify} disabled={checking}
-          className="inline-flex items-center gap-2 min-h-11 px-4 rounded-full bg-black text-white text-sm font-semibold hover:bg-gray-800 disabled:opacity-50 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
-          <ShieldCheck className="w-4 h-4" /> {checking ? 'Verifying…' : 'Verify chain'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={runTamperTest} disabled={tampering}
+            className="inline-flex items-center gap-2 min-h-11 px-4 rounded-full border border-gray-300 bg-white text-gray-900 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
+            <AlertTriangle className="w-4 h-4 text-amber-600" /> {tampering ? 'Testing…' : 'Test tamper trigger'}
+          </button>
+          <button type="button" onClick={verify} disabled={checking}
+            className="inline-flex items-center gap-2 min-h-11 px-4 rounded-full bg-black text-white text-sm font-semibold hover:bg-gray-800 disabled:opacity-50 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
+            <ShieldCheck className="w-4 h-4" /> {checking ? 'Verifying…' : 'Verify chain'}
+          </button>
+        </div>
       </header>
 
       {/* Cryptographic Tamper-Evidence Strip */}
@@ -76,6 +90,24 @@ export function AuditTab() {
       </div>
 
       {checkError && <ErrorBox message={checkError} onRetry={verify} />}
+      {tamper && (
+        tamper.blocked ? (
+          <div role="status" className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs sm:text-sm text-emerald-950 space-y-1.5">
+            <div className="flex items-center gap-2 font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span>Immutability trigger blocked tampered write cleanly.</span>
+            </div>
+            <div className="font-mono text-[11px] bg-white/80 border border-emerald-200 rounded-lg px-3 py-2 text-gray-800 space-y-1">
+              <div><span className="text-gray-500">Attempted SQL:</span> {tamper.sql}</div>
+              <div className="text-red-700 font-semibold"><span className="text-gray-500 font-normal">SQLite response:</span> {tamper.error}</div>
+            </div>
+          </div>
+        ) : (
+          <div role="status" className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs sm:text-sm text-amber-950">
+            {tamper.error}
+          </div>
+        )
+      )}
       {check && (check.ok ? (
         <div role="status" className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 text-sm text-emerald-950">
           <CheckCircle2 className="w-5 h-5 text-emerald-700" />
