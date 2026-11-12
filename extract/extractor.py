@@ -253,6 +253,19 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
                 "is_derived": True,
             }
 
+    # Free cash flow is not a reported line: derive operating cash flow - capital expenditure (same table).
+    ocf, capex = extracted_by_metric.get("operating_cash_flow") or {}, extracted_by_metric.get("capex") or {}
+    if ocf.get("value") is not None and capex.get("value") is not None:
+        fcf = round(ocf["value"] - abs(capex["value"]), 2)
+        prior = (None if ocf.get("prior_value") is None or capex.get("prior_value") is None
+                 else round(ocf["prior_value"] - abs(capex["prior_value"]), 2))
+        extracted_by_metric["free_cash_flow"] = {
+            "value": fcf, "alt_value": None, "extractor": "parser", "row_label": "Free cash flow (derived)",
+            "source_snippet": f"Derived: {ocf['value']} (operating cash flow) - {abs(capex['value'])} (capital expenditure) = {fcf}",
+            "prior_value": prior, "history": {}, "column_header": ocf.get("column_header", ""),
+            "table_index": ocf.get("table_index"), "table_scale": ocf.get("table_scale", 1), "is_derived": True,
+        }
+
     segments = _plausible_segments(segments, extracted_by_metric.get("revenue", {}).get("value"))
 
     # 4. Construct ExtractedValue models for all 9 metrics
@@ -397,6 +410,8 @@ if __name__ == "__main__":
 
     mock = {r["metric"]: r for r in json.loads(MOCK_VALUES.read_text()) if r["ticker"] == "AAPL"}
     for v in values:
+        if v.metric not in mock:   # metrics added after the fixture (gross profit, capex, ...)
+            continue
         m = mock[v.metric]
         assert (v.value, v.prior_value, v.scale) == (m["value"], m["prior_value"], m["scale"]), (v.metric, v.value, m["value"])
     assert sum(s["value"] for s in segments) == mock["revenue"]["value"], "segments must sum to revenue"

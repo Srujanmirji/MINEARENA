@@ -10,7 +10,8 @@ const BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$
 
 export type Metric =
   | 'revenue' | 'operating_income' | 'net_income' | 'eps_diluted'
-  | 'total_assets' | 'total_liabilities' | 'equity' | 'operating_cash_flow' | 'cash';
+  | 'total_assets' | 'total_liabilities' | 'equity' | 'operating_cash_flow' | 'cash'
+  | 'gross_profit' | 'capex' | 'long_term_debt' | 'free_cash_flow';
 
 export type ValueStatus = 'extracted' | 'auto_approved' | 'escalated' | 'approved' | 'corrected' | 'rejected';
 export type RunStatus = 'running' | 'paused' | 'done' | 'error';

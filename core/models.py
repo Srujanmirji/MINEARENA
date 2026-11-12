@@ -5,6 +5,7 @@ Metric = Literal[
     "revenue", "operating_income", "net_income", "eps_diluted",
     "total_assets", "total_liabilities", "equity",
     "operating_cash_flow", "cash",
+    "gross_profit", "capex", "long_term_debt", "free_cash_flow",
 ]
 
 Status = Literal[
@@ -20,6 +21,7 @@ METRICS: list[str] = [
     "revenue", "operating_income", "net_income", "eps_diluted",
     "total_assets", "total_liabilities", "equity",
     "operating_cash_flow", "cash",
+    "gross_profit", "capex", "long_term_debt", "free_cash_flow",
 ]   # 9 metrics; the PS requires at least 8
 
 

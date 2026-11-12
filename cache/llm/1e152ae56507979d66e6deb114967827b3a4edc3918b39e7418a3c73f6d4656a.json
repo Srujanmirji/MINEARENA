@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "metric": "operating_cash_flow",
+      "row_label": "Net cash provided by operating activities",
+      "current_value": 15817,
+      "prior_value": 13335,
+      "column_header": "August 30,2026",
+      "snippet": "Net cash provided by operating activities | 15,817 | 13,335 | 11,339"
+    },
+    {
+      "metric": "capex",
+      "row_label": "Additions to property and equipment",
+      "current_value": -6435,
+      "prior_value": -5498,
+      "column_header": "August 30,2026",
+      "snippet": "Additions to property and equipment | (6,435) | (5,498) | (4,710)"
+    }
+  ]
+}

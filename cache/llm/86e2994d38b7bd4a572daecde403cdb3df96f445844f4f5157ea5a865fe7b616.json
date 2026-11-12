@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "metric": "operating_cash_flow",
+      "row_label": "Net cash provided by operating activities",
+      "current_value": 164713,
+      "prior_value": 125299,
+      "column_header": "2025",
+      "snippet": "Net cash provided by operating activities | 101,746 | 125,299 | 164,713"
+    },
+    {
+      "metric": "capex",
+      "row_label": "Purchases of property and equipment",
+      "current_value": -91447,
+      "prior_value": -52535,
+      "column_header": "2025",
+      "snippet": "Purchases of property and equipment | (32,251) | (52,535) | (91,447)"
+    }
+  ]
+}

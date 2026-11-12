@@ -58,6 +58,12 @@ def label_allowed(metric: str, label: str) -> bool:
     # Non-GAAP figures "do NOT conform to GAAP" (SEC, How to Read a 10-K): never one of our 9 metrics.
     if any(w in lbl for w in NON_GAAP_WORDS):
         return False
+    if metric == "gross_profit":
+        return "%" not in lbl and "percent" not in lbl
+    if metric == "long_term_debt":
+        # "Long-term debt, excluding current installments" IS the row; "Current portion of long-term debt" is not.
+        is_current_part = "current" in lbl and not any(x in lbl for x in ("excluding", "net of", "less", "non-current", "noncurrent"))
+        return not is_current_part and not any(w in lbl for w in ("due within", "total liabilities", "and equity"))
     if metric == "total_equity":
         return "total" in lbl and "equity" in lbl and "liabilities" not in lbl and "noncontrolling" not in lbl
     if metric == "eps_diluted":

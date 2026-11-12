@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "metric": "total_assets",
+      "row_label": "Total assets",
+      "current_value": 284668,
+      "prior_value": 260823,
+      "column_header": "2026",
+      "snippet": "Total assets | $ | 284,668 | $ | 260,823"
+    },
+    {
+      "metric": "cash",
+      "row_label": "Cash and cash equivalents",
+      "current_value": 10727,
+      "prior_value": 9037,
+      "column_header": "2026",
+      "snippet": "Cash and cash equivalents | $ | 10,727 | $ | 9,037"
+    },
+    {
+      "metric": "long_term_debt",
+      "row_label": "Long-term debt",
+      "current_value": 34624,
+      "prior_value": 33401,
+      "column_header": "2026",
+      "snippet": "Long-term debt | 34,624 | 33,401"
+    },
+    {
+      "metric": "equity",
+      "row_label": "Total Walmart shareholders' equity",
+      "current_value": 99617,
+      "prior_value": 91013,
+      "column_header": "2026",
+      "snippet": "Total Walmart shareholders' equity | 99,617 | 91,013"
+    }
+  ]
+}

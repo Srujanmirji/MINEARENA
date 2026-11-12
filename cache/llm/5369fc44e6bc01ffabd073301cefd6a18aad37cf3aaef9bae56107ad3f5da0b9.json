@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "Total revenues",
+      "current_value": 94827,
+      "prior_value": 97690,
+      "column_header": "2025",
+      "snippet": "Total revenues | 94,827 | 97,690 | 96,773"
+    },
+    {
+      "metric": "operating_income",
+      "row_label": "Income from operations",
+      "current_value": 4355,
+      "prior_value": 7076,
+      "column_header": "2025",
+      "snippet": "Income from operations | 4,355 | 7,076 | 8,891"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "Net income attributable to common stockholders",
+      "current_value": 3794,
+      "prior_value": 7091,
+      "column_header": "2025",
+      "snippet": "Net income attributable to common stockholders | $ | 3,794 | $ | 7,091 | $ | 14,997"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Diluted",
+      "current_value": 1.08,
+      "prior_value": 2.04,
+      "column_header": "2025",
+      "snippet": "Diluted | $ | 1.08 | $ | 2.04 | $ | 4.30"
+    },
+    {
+      "metric": "gross_profit",
+      "row_label": "Gross profit",
+      "current_value": 17094,
+      "prior_value": 17450,
+      "column_header": "2025",
+      "snippet": "Gross profit | 17,094 | 17,450 | 17,660"
+    }
+  ]
+}

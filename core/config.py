@@ -56,6 +56,13 @@ SYNONYMS: dict[str, list[str]] = {
         "net cash from operations",
     ],
     "cash": ["cash and cash equivalents"],
+    "gross_profit": ["gross profit", "gross margin", "total gross margin", "gross profit (loss)"],
+    "capex": ["purchases of property and equipment", "payments for acquisition of property, plant and equipment",
+              "capital expenditures", "purchases of property, plant and equipment",
+              "additions to property and equipment", "payments for property and equipment"],
+    "long_term_debt": ["long-term debt", "long-term debt, net", "long-term debt, excluding current portion",
+                       "long-term debt, net of current portion", "term debt"],
+    "free_cash_flow": ["free cash flow"],
 }
 
 STATEMENT_OF: dict[str, str] = {
@@ -64,6 +71,7 @@ STATEMENT_OF: dict[str, str] = {
     "total_assets": "balance_sheet", "total_liabilities": "balance_sheet",
     "equity": "balance_sheet", "cash": "balance_sheet",
     "operating_cash_flow": "cash_flow",
+    "gross_profit": "income_statement", "capex": "cash_flow", "long_term_debt": "balance_sheet",
 }
 
 

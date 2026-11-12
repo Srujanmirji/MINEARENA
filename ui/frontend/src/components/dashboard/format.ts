@@ -10,6 +10,10 @@ export const METRIC_LABEL: Record<Metric, string> = {
   equity: "Shareholders' equity",
   operating_cash_flow: 'Operating cash flow',
   cash: 'Cash and equivalents',
+  gross_profit: 'Gross profit',
+  capex: 'Capital expenditure',
+  long_term_debt: 'Long-term debt',
+  free_cash_flow: 'Free cash flow',
 };
 
 export const TICKERS = ['AAPL', 'MSFT', 'NVDA', 'WMT', 'TSLA'] as const;

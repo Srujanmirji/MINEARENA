@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "metric": "total_assets",
+      "row_label": "Total assets",
+      "current_value": 105095,
+      "prior_value": 96119,
+      "column_header": "February 1,2026",
+      "snippet": "Total assets | $ | 105,095 | $ | 96,119"
+    },
+    {
+      "metric": "total_liabilities",
+      "row_label": "Total liabilities",
+      "current_value": 92282,
+      "prior_value": 89479,
+      "column_header": "February 1,2026",
+      "snippet": "Total liabilities | 92,282 | 89,479"
+    },
+    {
+      "metric": "equity",
+      "row_label": "Total stockholders\u2019 equity",
+      "current_value": 12813,
+      "prior_value": 6640,
+      "column_header": "February 1,2026",
+      "snippet": "Total stockholders\u2019 equity | 12,813 | 6,640"
+    },
+    {
+      "metric": "cash",
+      "row_label": "Cash and cash equivalents",
+      "current_value": 1389,
+      "prior_value": 1659,
+      "column_header": "February 1,2026",
+      "snippet": "Cash and cash equivalents | $ | 1,389 | $ | 1,659"
+    },
+    {
+      "metric": "long_term_debt",
+      "row_label": "Long-term debt, excluding current installments",
+      "current_value": 46341,
+      "prior_value": 48485,
+      "column_header": "February 1,2026",
+      "snippet": "Long-term debt, excluding current installments | 46,341 | 48,485"
+    }
+  ]
+}

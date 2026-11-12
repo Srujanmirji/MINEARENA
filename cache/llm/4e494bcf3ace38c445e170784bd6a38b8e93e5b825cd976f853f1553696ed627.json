@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "metric": "operating_cash_flow",
+      "row_label": "Net cash provided by operating activities",
+      "current_value": 16325,
+      "prior_value": 19810,
+      "column_header": "2025",
+      "snippet": "Net cash provided by operating activities | 16,325 | 19,810 | 21,172"
+    },
+    {
+      "metric": "capex",
+      "row_label": "Capital expenditures",
+      "current_value": -3679,
+      "prior_value": -3485,
+      "column_header": "2025",
+      "snippet": "Capital expenditures | (3,679) | (3,485) | (3,226)"
+    }
+  ]
+}

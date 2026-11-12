@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "Total net sales",
+      "current_value": 478834,
+      "prior_value": 416161,
+      "column_header": "September 26,2026",
+      "snippet": "Total net sales | 478,834 | 416,161 | 391,035"
+    },
+    {
+      "metric": "operating_income",
+      "row_label": "Operating income",
+      "current_value": 158063,
+      "prior_value": 133050,
+      "column_header": "September 26,2026",
+      "snippet": "Operating income | 158,063 | 133,050 | 123,216"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "Net income",
+      "current_value": 132175,
+      "prior_value": 112010,
+      "column_header": "September 26,2026",
+      "snippet": "Net income | $ | 132,175 | $ | 112,010 | $ | 93,736"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Diluted",
+      "current_value": 8.98,
+      "prior_value": 7.46,
+      "column_header": "September 26,2026",
+      "snippet": "Diluted | $ | 8.98 | $ | 7.46 | $ | 6.08"
+    },
+    {
+      "metric": "gross_profit",
+      "row_label": "Gross margin",
+      "current_value": 233602,
+      "prior_value": 195201,
+      "column_header": "September 26,2026",
+      "snippet": "Gross margin | 233,602 | 195,201 | 180,683"
+    }
+  ]
+}

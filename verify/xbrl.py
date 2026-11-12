@@ -20,8 +20,12 @@ TAGS: dict[str, list[str]] = {
     "equity": ["StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"],
     "operating_cash_flow": ["NetCashProvidedByUsedInOperatingActivities"],
     "cash": ["CashAndCashEquivalentsAtCarryingValue"],
+    "gross_profit": ["GrossProfit"],
+    "capex": ["PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"],
+    "long_term_debt": ["LongTermDebtNoncurrent", "LongTermDebt"],
+    "free_cash_flow": [],  # not a GAAP line: derived, no ground truth
 }
-INSTANT = {"total_assets", "total_liabilities", "equity", "cash"}  # balance-sheet: no start date
+INSTANT = {"total_assets", "total_liabilities", "equity", "cash", "long_term_debt"}  # balance-sheet: no start date
 FISCAL_YEAR_DAYS, YEAR_SLACK_DAYS = 365, 10  # 52/53-week years land within ±10 days
 EPS_UNIT = "USD/shares"
 
@@ -60,7 +64,11 @@ def verify_one(v: ExtractedValue, facts: dict, accession: str) -> dict:
     tolerance = 0.01 if v.unit == EPS_UNIT else float(v.scale)
     final = v.final_value if v.final_value is not None else v.value
     ours = None if v.status == "rejected" or final is None else final * v.scale
+    if v.metric == "capex" and ours is not None:   # tables show capex as an outflow "(9,447)"; XBRL reports it positive
+        ours = abs(ours)
     orig = None if v.value is None else v.value * v.scale  # pre-review value, for escalation precision
+    if v.metric == "capex" and orig is not None:
+        orig = abs(orig)
     return {
         "value_id": v.id,
         "xbrl_tag": tag,
