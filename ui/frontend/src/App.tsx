@@ -35,37 +35,40 @@ export function App() {
   };
 
   return (
-    <div
-      className={`flex flex-col bg-[#F5F5F5] min-h-screen selection:bg-black selection:text-white transition-all duration-300 ease-out origin-center ${
-        isModalOpen ? 'scale-[0.985] opacity-75 pointer-events-none filter blur-[0.5px]' : 'scale-100 opacity-100 filter-none'
-      }`}
-    >
-      {/* 1. First Section: Navbar + Hero in h-screen overflow-hidden wrapper */}
-      <div className="h-screen flex flex-col overflow-hidden relative">
-        <Navbar
-          isLoggedIn={isLoggedIn}
-          currentUser={currentUser}
-          onOpenDashboard={() => handleOpenModal('wallet')}
-          onLogout={handleLogout}
-          onDocsClick={() => setIsDocsOpen(true)}
-          onAccuracyClick={() => setIsAccuracyOpen(true)}
+    <div className="flex flex-col bg-[#F5F5F5] min-h-screen selection:bg-black selection:text-white">
+      {/* Landing page shell with spatial depth animation when dashboard opens */}
+      <div
+        className={`flex flex-col transition-all duration-500 ease-out origin-center ${
+          isModalOpen ? 'scale-[0.985] blur-[1.5px] opacity-70 pointer-events-none' : 'scale-100 blur-0 opacity-100'
+        }`}
+      >
+        {/* 1. First Section: Navbar + Hero in h-screen overflow-hidden wrapper */}
+        <div className="h-screen flex flex-col overflow-hidden relative">
+          <Navbar
+            isLoggedIn={isLoggedIn}
+            currentUser={currentUser}
+            onOpenDashboard={() => handleOpenModal('wallet')}
+            onLogout={handleLogout}
+            onDocsClick={() => setIsDocsOpen(true)}
+            onAccuracyClick={() => setIsAccuracyOpen(true)}
+          />
+          <HeroSection
+            onJoinUs={() => handleOpenModal('wallet')}
+          />
+        </div>
+
+        {/* 2. Info Section (How it works & Accuracy Card) */}
+        <InfoSection
+          onDiscover={() => handleOpenModal('discover')}
+          onOpenAccuracyReport={() => setIsAccuracyOpen(true)}
         />
-        <HeroSection
-          onJoinUs={() => handleOpenModal('wallet')}
-        />
+
+        {/* 3. Backed By Section */}
+        <BackedBySection />
+
+        {/* 4. Use Cases Section (For auditors) */}
+        <UseCasesSection onKnowMore={() => handleOpenModal('commerce')} />
       </div>
-
-      {/* 2. Info Section (How it works & Accuracy Card) */}
-      <InfoSection
-        onDiscover={() => handleOpenModal('discover')}
-        onOpenAccuracyReport={() => setIsAccuracyOpen(true)}
-      />
-
-      {/* 3. Backed By Section */}
-      <BackedBySection />
-
-      {/* 4. Use Cases Section (For auditors) */}
-      <UseCasesSection onKnowMore={() => handleOpenModal('commerce')} />
 
       {/* Login Modal */}
       <LoginModal

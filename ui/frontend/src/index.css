@@ -79,20 +79,19 @@ html, body {
 }
 
 /* ==========================================================================
-   Full-Screen Dashboard Entrance & Exit Animations
-   Apple-grade cubic-bezier curves for fluid physics feel
+   Full-Screen Dashboard Spatial Transition Animations
    ========================================================================== */
 
 @keyframes dashboardEnter {
   0% {
     opacity: 0;
-    transform: scale(0.965) translateY(12px);
-    backdrop-filter: blur(8px);
+    transform: scale(0.96) translateY(14px);
+    filter: blur(8px);
   }
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
-    backdrop-filter: blur(0px);
+    filter: blur(0);
   }
 }
 
@@ -100,17 +99,19 @@ html, body {
   0% {
     opacity: 1;
     transform: scale(1) translateY(0);
+    filter: blur(0);
   }
   100% {
     opacity: 0;
-    transform: scale(0.97) translateY(10px);
+    transform: scale(0.96) translateY(18px);
+    filter: blur(8px);
   }
 }
 
-@keyframes sidebarEnter {
+@keyframes sidebarSlideIn {
   0% {
     opacity: 0;
-    transform: translateX(-36px);
+    transform: translateX(-35px);
   }
   100% {
     opacity: 1;
@@ -118,21 +119,10 @@ html, body {
   }
 }
 
-@keyframes sidebarExit {
-  0% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(-28px);
-  }
-}
-
-@keyframes cascadeUp {
+@keyframes headerSlideDown {
   0% {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(-16px);
   }
   100% {
     opacity: 1;
@@ -140,65 +130,54 @@ html, body {
   }
 }
 
-@keyframes cardLift {
+@keyframes cardGlideUp {
   0% {
     opacity: 0;
-    transform: translateY(24px) scale(0.985);
+    transform: translateY(22px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
-@keyframes pulseGlow {
+@keyframes amberGlowPulse {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
   }
   50% {
-    box-shadow: 0 0 18px 2px rgba(245, 158, 11, 0.22);
+    box-shadow: 0 0 16px 2px rgba(245, 158, 11, 0.22);
   }
 }
 
-/* Utility Animation Classes */
-.animate-dashboard-in {
-  animation: dashboardEnter 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity;
+.animate-dashboard-enter {
+  animation: dashboardEnter 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, filter;
 }
 
-.animate-dashboard-out {
-  animation: dashboardExit 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  will-change: transform, opacity;
+.animate-dashboard-exit {
+  animation: dashboardExit 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity, filter;
 }
 
 .animate-sidebar-in {
-  animation: sidebarEnter 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity;
+  animation: sidebarSlideIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.04s backwards;
 }
 
-.animate-sidebar-out {
-  animation: sidebarExit 0.24s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  will-change: transform, opacity;
-}
-
-.animate-cascade-1 {
-  animation: cascadeUp 0.44s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
-}
-
-.animate-cascade-2 {
-  animation: cascadeUp 0.44s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+.animate-header-down {
+  animation: headerSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.08s backwards;
 }
 
 .animate-card-left {
-  animation: cardLift 0.48s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+  animation: cardGlideUp 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.14s backwards;
 }
 
 .animate-card-right {
-  animation: cardLift 0.48s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+  animation: cardGlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
 }
 
 .animate-warning-glow {
-  animation: pulseGlow 3s ease-in-out infinite;
+  animation: amberGlowPulse 3s ease-in-out infinite;
 }
 
 
