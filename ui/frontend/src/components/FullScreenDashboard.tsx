@@ -5,9 +5,6 @@ import {
   CheckCircle2,
   ShieldCheck,
   ArrowLeft,
-  BarChart3,
-  Clock,
-  Layers,
 } from 'lucide-react';
 
 interface FullScreenDashboardProps {
@@ -374,49 +371,45 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
     >
       {/* -------------------- LEFT SIDEBAR (Dark Charcoal / Navy) -------------------- */}
       <aside
-        className={`w-64 bg-[#0B0F17] flex flex-col justify-between p-5 text-gray-300 border-r border-gray-800 shrink-0 select-none ${
+        className={`w-56 bg-[#0B0F17] flex flex-col justify-between p-5 text-gray-300 border-r border-gray-800 shrink-0 select-none ${
           isExiting ? 'animate-sidebar-out' : 'animate-sidebar-in'
         }`}
       >
         <div>
           {/* Logo & Brand */}
-          <div className="flex items-center gap-3 px-2 py-3 mb-6">
-            <div className="w-7 h-7 rounded-md bg-white text-black flex items-center justify-center font-bold">
-              <CheckSquare className="w-5 h-5 text-black" />
+          <div className="flex items-center gap-2.5 px-1 py-2 mb-6">
+            <div className="w-6 h-6 rounded-md bg-white text-black flex items-center justify-center font-bold">
+              <CheckSquare className="w-4 h-4 text-black" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">AuditLoop</span>
+            <span className="text-lg font-bold tracking-tight text-white">AuditLoop</span>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="space-y-1.5">
+          {/* Navigation Links - Clean text matching reference screenshot */}
+          <nav className="space-y-1">
             <button
               type="button"
               onClick={() => setActiveTab('runs')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'runs'
                   ? 'bg-[#1E293B] text-white'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <Layers className="w-4 h-4" />
-              <span>Runs</span>
+              Runs
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('review')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'review'
                   ? 'bg-[#1E293B] text-white shadow-xs'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <CheckSquare className="w-4 h-4" />
-                <span>Review queue</span>
-              </div>
+              <span>Review queue</span>
               {pendingItems.length > 0 && (
-                <span className="bg-[#D97706] text-black font-extrabold text-xs px-2 py-0.5 rounded-full">
+                <span className="bg-[#D97706] text-black font-extrabold text-[11px] px-2 py-0.2 rounded-full">
                   {pendingItems.length}
                 </span>
               )}
@@ -425,33 +418,31 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('accuracy')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'accuracy'
                   ? 'bg-[#1E293B] text-white'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <BarChart3 className="w-4 h-4" />
-              <span>Accuracy report</span>
+              Accuracy report
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('audit')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'audit'
                   ? 'bg-[#1E293B] text-white'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <Clock className="w-4 h-4" />
-              <span>Audit log</span>
+              Audit log
             </button>
           </nav>
         </div>
 
         {/* Footer Parameters & Exit Button */}
-        <div className="pt-6 border-t border-gray-800/80 text-xs text-gray-500 space-y-1.5 px-1">
+        <div className="pt-4 border-t border-gray-800/80 text-[11px] text-gray-500 space-y-1.5 px-1">
           <div>Auto-approve at score &ge; 0.85</div>
           <div>YoY flag above 40%</div>
           <div>Source: SEC EDGAR</div>
@@ -459,34 +450,37 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
           <button
             type="button"
             onClick={handleClose}
-            className="mt-4 w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors border border-gray-800"
+            className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors border border-gray-800"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3 h-3" />
             <span>Back to landing page</span>
           </button>
         </div>
       </aside>
 
       {/* -------------------- MAIN CONTENT AREA -------------------- */}
-      <main className="flex-1 overflow-y-auto h-screen bg-[#F8FAFC] p-8 md:p-10">
+      <main
+        className="flex-1 overflow-y-auto h-screen bg-[#F8FAFC] py-4 px-6 lg:px-8"
+        style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+      >
         {/* Toast Notification */}
         {toastMessage && (
-          <div className="fixed top-6 right-8 z-50 bg-emerald-900 text-emerald-100 border border-emerald-700 px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-200">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <span className="text-sm font-medium">{toastMessage}</span>
+          <div className="fixed top-5 right-8 z-50 bg-emerald-900 text-emerald-100 border border-emerald-700 px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2.5 animate-in fade-in slide-in-from-top-4 duration-200">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-medium">{toastMessage}</span>
           </div>
         )}
 
         {/* ===================== TAB 1: REVIEW QUEUE (EXACT SCREENSHOT) ===================== */}
         {activeTab === 'review' && (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-[1240px] mx-auto">
             {pendingItems.length === 0 ? (
-              <div className="bg-white rounded-3xl p-16 text-center border border-gray-200 shadow-xs mt-10">
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="w-8 h-8" />
+              <div className="bg-white rounded-2xl p-12 text-center border border-gray-200 shadow-xs mt-6">
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 className="w-7 h-7" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Review Queue Cleared!</h2>
-                <p className="text-gray-600 max-w-md mx-auto mb-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-1">Review Queue Cleared!</h2>
+                <p className="text-gray-600 text-xs max-w-md mx-auto mb-5">
                   All flagged 10-K extractions have been reviewed and committed to the hash-chained audit log.
                 </p>
                 <div className="flex justify-center gap-3">
@@ -495,13 +489,13 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                       setPendingItems(PENDING_ITEMS);
                       setCurrentIndex(0);
                     }}
-                    className="bg-black text-white text-sm font-medium px-6 py-2.5 rounded-full hover:bg-gray-800 transition-colors"
+                    className="bg-black text-white text-xs font-semibold px-5 py-2 rounded-full hover:bg-gray-800 transition-colors"
                   >
                     Reset Demo Queue
                   </button>
                   <button
                     onClick={() => setActiveTab('audit')}
-                    className="border border-gray-300 text-gray-800 text-sm font-medium px-6 py-2.5 rounded-full hover:bg-gray-50 transition-colors"
+                    className="border border-gray-300 text-gray-800 text-xs font-semibold px-5 py-2 rounded-full hover:bg-gray-50 transition-colors"
                   >
                     View Audit Log
                   </button>
@@ -509,48 +503,35 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
               </div>
             ) : (
               <div>
-                {/* Top Breadcrumb & Status & Quick Exit */}
-                <div className="flex items-center justify-between text-sm mb-2 animate-cascade-1">
+                {/* Top Breadcrumb & Status */}
+                <div className="flex items-center justify-between text-xs mb-1.5 animate-cascade-1">
                   <div className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
                     Review queue <span className="text-gray-400">/</span> {currentItem.ticker} · {currentItem.metric}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-gray-500 font-medium">
-                      Item {currentIndex + 1} of {pendingItems.length} pending
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="group flex items-center gap-1.5 px-3 py-1 rounded-full bg-white hover:bg-gray-100 text-gray-500 hover:text-black border border-gray-200/80 shadow-xs text-xs font-medium transition-all hover:scale-[1.03]"
-                      title="Return to landing page (Esc)"
-                    >
-                      <span>Exit</span>
-                      <kbd className="bg-gray-100 group-hover:bg-gray-200 text-gray-600 px-1 rounded text-[10px] font-mono border border-gray-200">
-                        Esc
-                      </kbd>
-                    </button>
+                  <div className="text-gray-500 font-medium">
+                    Item {currentIndex + 1} of {pendingItems.length} pending
                   </div>
                 </div>
 
                 {/* Header Title with Cascade Animation */}
-                <div className="animate-cascade-1">
-                  <h1 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">
+                <div className="animate-cascade-1 mb-2.5">
+                  <h1 className="text-2xl lg:text-[26px] font-bold text-gray-900 tracking-tight leading-tight">
                     {currentItem.metric} · {currentItem.company}
                   </h1>
-                  <p className="text-sm text-gray-500 mt-1 mb-6">
+                  <p className="text-xs text-gray-500 mt-0.5">
                     {currentItem.filingSubtitle}
                   </p>
                 </div>
 
                 {/* Amber Warning Box: Why this was paused */}
-                <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-4 mb-6 shadow-xs animate-cascade-2 animate-warning-glow">
-                  <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-3 mb-3 shadow-xs animate-cascade-2 animate-warning-glow">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-sm font-bold text-amber-900">
+                      <h4 className="text-xs font-bold text-amber-900">
                         {currentItem.pauseReasonTitle}
                       </h4>
-                      <p className="text-sm text-amber-800 mt-0.5 leading-relaxed">
+                      <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
                         {currentItem.pauseReasonDetails}
                       </p>
                     </div>
@@ -558,54 +539,54 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                 </div>
 
                 {/* Two-Column Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
                   {/* ----------------- LEFT COLUMN: Source evidence (7 cols) ----------------- */}
-                  <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-gray-200/80 shadow-xs animate-card-left">
-                    <h3 className="text-base font-bold text-gray-900">Source evidence</h3>
-                    <p className="text-xs text-gray-500 mt-0.5 mb-5">{currentItem.sourceStatement}</p>
+                  <div className="lg:col-span-7 bg-white rounded-xl p-4 border border-gray-200/90 shadow-xs animate-card-left">
+                    <h3 className="text-sm font-bold text-gray-900">Source evidence</h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2.5">{currentItem.sourceStatement}</p>
 
                     {/* Financial Data Table */}
-                    <div className="overflow-x-auto border-t border-b border-gray-100 py-3">
+                    <div className="overflow-x-auto border-t border-b border-gray-100 py-1">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="text-xs font-semibold text-gray-600 border-b border-gray-100">
-                            <th className="py-2.5 pr-4">Years ended</th>
-                            <th className="py-2.5 px-3 text-right">Sep 28, 2024</th>
-                            <th className="py-2.5 px-3 text-right">Sep 30, 2023</th>
-                            <th className="py-2.5 pl-3 text-right">Sep 24, 2022</th>
+                          <tr className="text-[11px] font-semibold text-gray-600 border-b border-gray-100">
+                            <th className="py-2 pr-3">Years ended</th>
+                            <th className="py-2 px-2 text-right">Sep 28,<br />2024</th>
+                            <th className="py-2 px-2 text-right">Sep 30,<br />2023</th>
+                            <th className="py-2 pl-2 text-right">Sep 24,<br />2022</th>
                           </tr>
                         </thead>
-                        <tbody className="text-sm text-gray-800 divide-y divide-gray-50 font-normal">
+                        <tbody className="text-xs text-gray-800 divide-y divide-gray-50 font-normal">
                           {currentItem.sourceRows.map((row, idx) => (
                             <tr
                               key={idx}
-                              className={row.isMuted ? 'text-xs text-gray-400 italic bg-gray-50/50' : ''}
+                              className={row.isMuted ? 'text-[11px] text-gray-400 italic bg-gray-50/50' : ''}
                             >
-                              <td className="py-3 pr-4 font-medium text-gray-900">
+                              <td className="py-2 pr-3 font-medium text-gray-900">
                                 {row.label}
                               </td>
 
                               {row.targetRow ? (
                                 <>
-                                  <td className="py-3 px-2 text-right">
-                                    <span className="inline-block border-2 border-blue-600 bg-blue-50/40 text-blue-950 font-bold px-2.5 py-1 rounded-md text-sm">
+                                  <td className="py-2 px-1 text-right">
+                                    <span className="inline-block border-2 border-blue-600 bg-blue-50/40 text-blue-950 font-bold px-2 py-0.5 rounded-md text-xs">
                                       {row.col1}
                                     </span>
                                   </td>
-                                  <td className="py-3 px-2 text-right">
-                                    <span className="inline-block border-2 border-dashed border-amber-500 bg-amber-50/40 text-amber-950 font-bold px-2.5 py-1 rounded-md text-sm">
+                                  <td className="py-2 px-1 text-right">
+                                    <span className="inline-block border-2 border-dashed border-amber-500 bg-amber-50/40 text-amber-950 font-bold px-2 py-0.5 rounded-md text-xs">
                                       {row.col2}
                                     </span>
                                   </td>
-                                  <td className="py-3 pl-3 text-right font-medium text-gray-600">
+                                  <td className="py-2 pl-2 text-right font-medium text-gray-600">
                                     {row.col3}
                                   </td>
                                 </>
                               ) : (
                                 <>
-                                  <td className="py-2.5 px-3 text-right text-gray-700">{row.col1}</td>
-                                  <td className="py-2.5 px-3 text-right text-gray-700">{row.col2}</td>
-                                  <td className="py-2.5 pl-3 text-right text-gray-700">{row.col3}</td>
+                                  <td className="py-1.5 px-2 text-right text-gray-700">{row.col1}</td>
+                                  <td className="py-1.5 px-2 text-right text-gray-700">{row.col2}</td>
+                                  <td className="py-1.5 pl-2 text-right text-gray-700">{row.col3}</td>
                                 </>
                               )}
                             </tr>
@@ -615,43 +596,43 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                     </div>
 
                     {/* Table Picked Legend */}
-                    <div className="flex items-center gap-6 mt-4 text-xs font-medium text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <span className="w-3.5 h-3.5 border-2 border-blue-600 rounded-xs bg-blue-50"></span>
+                    <div className="flex items-center gap-5 mt-3 text-[11px] font-medium text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 border-2 border-blue-600 rounded-xs bg-blue-50"></span>
                         <span>Table parser picked this</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-3.5 h-3.5 border-2 border-dashed border-amber-500 rounded-xs bg-amber-50"></span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 border-2 border-dashed border-amber-500 rounded-xs bg-amber-50"></span>
                         <span>LLM picked this</span>
                       </div>
                     </div>
 
                     {/* Synonym Match Subtext */}
-                    <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-400">
+                    <div className="mt-2.5 pt-2 border-t border-gray-100 text-[10px] text-gray-400">
                       {currentItem.synonymMatch}
                     </div>
                   </div>
 
                   {/* ----------------- RIGHT COLUMN: Extracted Value + Decision (5 cols) ----------------- */}
-                  <div className="lg:col-span-5 space-y-6 animate-card-right">
+                  <div className="lg:col-span-5 space-y-2.5 animate-card-right">
                     {/* Card 1: Extracted value */}
-                    <div className="bg-white rounded-2xl p-6 border border-gray-200/80 shadow-xs">
-                      <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    <div className="bg-white rounded-xl p-3.5 border border-gray-200/90 shadow-xs">
+                      <div className="text-xs font-semibold text-gray-800">
                         Extracted value
                       </div>
 
                       {/* Big Value + Unit */}
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                      <div className="mt-1 flex items-baseline gap-1.5">
+                        <span className="text-2xl lg:text-[28px] font-extrabold text-gray-900 tracking-tight">
                           {currentItem.extractedValue}
                         </span>
-                        <span className="text-sm font-semibold text-gray-500">
+                        <span className="text-xs font-semibold text-gray-500">
                           {currentItem.unit}
                         </span>
                       </div>
 
                       {/* Period & Type Metadata */}
-                      <div className="grid grid-cols-2 gap-4 mt-3 text-xs border-b border-gray-100 pb-4">
+                      <div className="grid grid-cols-2 gap-2 mt-1.5 text-[11px] border-b border-gray-100 pb-2">
                         <div>
                           <div className="text-gray-400">Period</div>
                           <div className="font-semibold text-gray-800 mt-0.5">{currentItem.period}</div>
@@ -663,8 +644,8 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                       </div>
 
                       {/* Confidence Meter */}
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between text-xs mb-1.5 font-medium">
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-[11px] mb-1 font-medium">
                           <span className="text-gray-900 font-bold">
                             Confidence {currentItem.confidence.toFixed(2)}
                           </span>
@@ -672,7 +653,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                         </div>
 
                         {/* Progress Bar with Tick Mark & Fluid Animation */}
-                        <div className="relative h-2.5 w-full bg-gray-100 rounded-full overflow-hidden mb-3">
+                        <div className="relative h-2 w-full bg-gray-100 rounded-full overflow-hidden mb-2">
                           <div
                             className="h-full bg-amber-500 rounded-full transition-all duration-700 ease-out"
                             style={{ width: meterLoaded ? `${currentItem.confidence * 100}%` : '0%' }}
@@ -686,11 +667,11 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                         </div>
 
                         {/* 4 Score Badges (Agreement, Label, Period, Checks) */}
-                        <div className="grid grid-cols-4 gap-2 text-center text-xs mt-2">
-                          <div className="bg-gray-50 border border-gray-100 rounded-lg p-2">
-                            <div className="text-gray-500 text-[11px]">Agreement</div>
+                        <div className="grid grid-cols-4 gap-1.5 text-center text-xs mt-1.5">
+                          <div className="bg-slate-50 border border-slate-100 rounded-md py-1 px-0.5">
+                            <div className="text-gray-500 text-[10px]">Agreement</div>
                             <div
-                              className={`font-bold mt-0.5 ${
+                              className={`font-bold text-xs mt-0.5 ${
                                 currentItem.signals.agreement.failed ? 'text-red-500' : 'text-gray-900'
                               }`}
                             >
@@ -698,24 +679,24 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                             </div>
                           </div>
 
-                          <div className="bg-gray-50 border border-gray-100 rounded-lg p-2">
-                            <div className="text-gray-500 text-[11px]">Label</div>
-                            <div className="font-bold text-gray-900 mt-0.5">
+                          <div className="bg-slate-50 border border-slate-100 rounded-md py-1 px-0.5">
+                            <div className="text-gray-500 text-[10px]">Label</div>
+                            <div className="font-bold text-xs text-gray-900 mt-0.5">
                               {currentItem.signals.label.score.toFixed(2)}
                             </div>
                           </div>
 
-                          <div className="bg-gray-50 border border-gray-100 rounded-lg p-2">
-                            <div className="text-gray-500 text-[11px]">Period</div>
-                            <div className="font-bold text-gray-900 mt-0.5">
+                          <div className="bg-slate-50 border border-slate-100 rounded-md py-1 px-0.5">
+                            <div className="text-gray-500 text-[10px]">Period</div>
+                            <div className="font-bold text-xs text-gray-900 mt-0.5">
                               {currentItem.signals.period.score.toFixed(2)}
                             </div>
                           </div>
 
-                          <div className="bg-gray-50 border border-gray-100 rounded-lg p-2">
-                            <div className="text-gray-500 text-[11px]">Checks</div>
+                          <div className="bg-slate-50 border border-slate-100 rounded-md py-1 px-0.5">
+                            <div className="text-gray-500 text-[10px]">Checks</div>
                             <div
-                              className={`font-bold mt-0.5 ${
+                              className={`font-bold text-xs mt-0.5 ${
                                 currentItem.signals.checks.failed ? 'text-amber-600' : 'text-gray-900'
                               }`}
                             >
@@ -726,86 +707,86 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                       </div>
 
                       {/* Side-by-Side Comparison Boxes (Parser vs LLM) */}
-                      <div className="grid grid-cols-2 gap-3 mt-4">
-                        <div className="border border-blue-500/80 bg-blue-50/20 rounded-xl p-3">
-                          <div className="text-xs text-gray-500">Table parser</div>
-                          <div className="text-base font-bold text-gray-900 mt-0.5">
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="border border-blue-500/80 bg-blue-50/20 rounded-lg p-2">
+                          <div className="text-[10px] text-gray-500">Table parser</div>
+                          <div className="text-sm font-bold text-gray-900 mt-0.5">
                             {currentItem.parserValue}
                           </div>
-                          <div className="text-[11px] text-gray-500 mt-0.5">
+                          <div className="text-[10px] text-gray-400 mt-0.5">
                             {currentItem.parserColumn}
                           </div>
                         </div>
 
-                        <div className="border border-dashed border-amber-500 bg-amber-50/20 rounded-xl p-3">
-                          <div className="text-xs text-gray-500">LLM</div>
-                          <div className="text-base font-bold text-gray-900 mt-0.5">
+                        <div className="border border-dashed border-amber-500 bg-amber-50/20 rounded-lg p-2">
+                          <div className="text-[10px] text-gray-500">LLM</div>
+                          <div className="text-sm font-bold text-gray-900 mt-0.5">
                             {currentItem.llmValue}
                           </div>
-                          <div className="text-[11px] text-gray-500 mt-0.5">
+                          <div className="text-[10px] text-gray-400 mt-0.5">
                             {currentItem.llmColumn}
                           </div>
                         </div>
                       </div>
 
                       {/* Validation Checks */}
-                      <div className="mt-4 pt-3 border-t border-gray-100 space-y-1.5 text-xs">
+                      <div className="mt-2 pt-1.5 border-t border-gray-100 space-y-1 text-xs">
                         {currentItem.validations.map((v, i) => (
-                          <div key={i} className="flex items-center gap-2">
+                          <div key={i} className="flex items-center gap-1.5">
                             <span
-                              className={`px-1.5 py-0.5 rounded font-semibold text-[10px] ${
+                              className={`px-1.5 py-0.2 rounded font-bold text-[10px] ${
                                 v.status === 'pass'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-red-100 text-red-800'
+                                  ? 'bg-emerald-100/90 text-emerald-800'
+                                  : 'bg-rose-100/90 text-rose-800'
                               }`}
                             >
                               {v.status === 'pass' ? 'Pass' : 'Fail'}
                             </span>
-                            <span className="text-gray-700 font-medium">{v.text}</span>
+                            <span className="text-gray-700 font-medium text-[11px]">{v.text}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {/* Card 2: Your decision */}
-                    <div className="bg-white rounded-2xl p-6 border border-gray-200/80 shadow-xs">
-                      <h3 className="text-base font-bold text-gray-900">Your decision</h3>
+                    <div className="bg-white rounded-xl p-3.5 border border-gray-200/90 shadow-xs">
+                      <h3 className="text-xs font-bold text-gray-900">Your decision</h3>
 
                       {/* Corrected Value Input */}
-                      <div className="mt-4">
-                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      <div className="mt-2">
+                        <label className="block text-[11px] font-semibold text-gray-600 mb-1">
                           Corrected value (only for Correct)
                         </label>
                         <input
                           type="text"
                           value={correctedVal}
                           onChange={(e) => setCorrectedVal(e.target.value)}
-                          className="w-full px-3 py-2 text-sm font-semibold text-gray-900 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                          className="w-full px-2.5 py-1 text-xs font-semibold text-gray-900 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black"
                           placeholder="e.g. 118,254"
                         />
                       </div>
 
                       {/* Reason Textarea */}
-                      <div className="mt-3">
-                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      <div className="mt-1.5">
+                        <label className="block text-[11px] font-semibold text-gray-600 mb-1">
                           Reason (required for Correct and Reject)
                         </label>
                         <textarea
                           rows={2}
                           value={reasonVal}
                           onChange={(e) => setReasonVal(e.target.value)}
-                          className="w-full p-2.5 text-xs text-gray-800 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black leading-relaxed"
+                          className="w-full h-11 p-2 text-xs text-gray-800 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black leading-tight resize-none"
                           placeholder="Provide audit rationale..."
                         />
                       </div>
 
                       {/* Action Buttons (Approve, Correct, Reject) */}
-                      <div className="grid grid-cols-3 gap-3 mt-4">
+                      <div className="grid grid-cols-3 gap-2 mt-2.5">
                         <button
                           type="button"
                           disabled={isSubmitted}
                           onClick={() => handleDecision('APPROVE')}
-                          className="bg-[#1B6E44] hover:bg-[#165a37] text-white text-sm font-semibold py-2.5 rounded-lg transition-colors shadow-xs disabled:opacity-50"
+                          className="bg-[#1B6E44] hover:bg-[#165a37] text-white text-xs font-semibold py-1.5 rounded-lg transition-colors shadow-xs disabled:opacity-50"
                         >
                           Approve
                         </button>
@@ -814,7 +795,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                           type="button"
                           disabled={isSubmitted || !reasonVal.trim()}
                           onClick={() => handleDecision('CORRECT')}
-                          className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-400 text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                          className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-400 text-xs font-semibold py-1.5 rounded-lg transition-colors disabled:opacity-50"
                         >
                           Correct
                         </button>
@@ -823,7 +804,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({
                           type="button"
                           disabled={isSubmitted || !reasonVal.trim()}
                           onClick={() => handleDecision('REJECT')}
-                          className="bg-white hover:bg-red-50 text-red-600 border border-red-300 text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                          className="bg-white hover:bg-red-50 text-red-600 border border-red-300 text-xs font-semibold py-1.5 rounded-lg transition-colors disabled:opacity-50"
                         >
                           Reject
                         </button>
