@@ -4,6 +4,7 @@ import { HeroSection } from './components/HeroSection';
 import { InfoSection } from './components/InfoSection';
 import { BackedBySection } from './components/BackedBySection';
 import { UseCasesSection } from './components/UseCasesSection';
+import { Footer } from './components/Footer';
 import { FullScreenDashboard, type DashboardTab } from './components/FullScreenDashboard';
 import { DocsModal } from './components/DocsModal';
 import { AccuracyModal } from './components/AccuracyModal';
@@ -38,6 +39,13 @@ export function App() {
         />
         <BackedBySection />
         <UseCasesSection onKnowMore={() => setDashboardTab('review')} />
+        <Footer
+          onOpenDashboard={() => setDashboardTab('review')}
+          onOpenRuns={() => setDashboardTab('runs')}
+          onOpenAccuracy={() => setIsAccuracyOpen(true)}
+          onOpenAudit={() => setDashboardTab('audit')}
+          onOpenDocs={() => setIsDocsOpen(true)}
+        />
       </div>
 
       {isDashboardOpen && (
