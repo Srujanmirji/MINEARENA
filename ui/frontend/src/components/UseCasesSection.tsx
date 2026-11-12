@@ -31,9 +31,9 @@ export const UseCasesSection: React.FC<UseCasesSectionProps> = ({ onKnowMore }) 
 
           {/* Key capabilities list */}
           <div className="space-y-4 border-t border-black/10 pt-6">
-            <div className="reveal-from-left delay-150 flex items-start gap-3">
-              <span className="p-1.5 rounded-md bg-black text-white shrink-0 mt-0.5">
-                <Zap className="w-3.5 h-3.5" />
+            <div className="reveal-from-left delay-150 flex items-start gap-3.5 p-3 rounded-xl hover:bg-black/[0.03] transition-colors card-hover-tilt">
+              <span className="p-2 rounded-lg bg-black text-white shrink-0 shadow-xs">
+                <Zap className="w-4 h-4" />
               </span>
               <div>
                 <h4 className="text-sm font-semibold text-black">Dual-Pass Extraction</h4>
@@ -43,9 +43,9 @@ export const UseCasesSection: React.FC<UseCasesSectionProps> = ({ onKnowMore }) 
               </div>
             </div>
 
-            <div className="reveal-from-left delay-225 flex items-start gap-3">
-              <span className="p-1.5 rounded-md bg-black text-white shrink-0 mt-0.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
+            <div className="reveal-from-left delay-225 flex items-start gap-3.5 p-3 rounded-xl hover:bg-black/[0.03] transition-colors card-hover-tilt">
+              <span className="p-2 rounded-lg bg-black text-white shrink-0 shadow-xs">
+                <CheckCircle2 className="w-4 h-4" />
               </span>
               <div>
                 <h4 className="text-sm font-semibold text-black">Invariant Validation</h4>
@@ -55,9 +55,9 @@ export const UseCasesSection: React.FC<UseCasesSectionProps> = ({ onKnowMore }) 
               </div>
             </div>
 
-            <div className="reveal-from-left delay-300 flex items-start gap-3">
-              <span className="p-1.5 rounded-md bg-black text-white shrink-0 mt-0.5">
-                <ShieldCheck className="w-3.5 h-3.5" />
+            <div className="reveal-from-left delay-300 flex items-start gap-3.5 p-3 rounded-xl hover:bg-black/[0.03] transition-colors card-hover-tilt">
+              <span className="p-2 rounded-lg bg-black text-white shrink-0 shadow-xs">
+                <ShieldCheck className="w-4 h-4" />
               </span>
               <div>
                 <h4 className="text-sm font-semibold text-black">Cryptographic Chain</h4>

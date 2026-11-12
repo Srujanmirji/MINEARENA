@@ -25,10 +25,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onJoinUs }) => {
 
   // Parallax calculations (bounded to the hero viewport range)
   const heroProgress = Math.min(Math.max(scrollY, 0), 800);
+  const containerScale = 1 - (heroProgress * 0.00007); // softly recedes into depth as you scroll down
   const videoTranslate = heroProgress * 0.22;
   const videoScale = 1 + (heroProgress * 0.00035);
-  const textTranslate = heroProgress * 0.14;
-  const textOpacity = Math.max(0.15, 1 - heroProgress / 650);
+  const textTranslate = heroProgress * 0.16;
+  const textOpacity = Math.max(0.12, 1 - heroProgress / 620);
 
   const scrollToNextSection = () => {
     const el = document.getElementById('how-it-works');
@@ -40,8 +41,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onJoinUs }) => {
   return (
     <div className="flex-1 px-6 pt-20 pb-6 flex items-end w-full">
       <div
-        className="relative w-full rounded-2xl overflow-hidden max-w-[88rem] mx-auto shadow-sm"
-        style={{ height: 'calc(100vh - 96px)' }}
+        className="relative w-full rounded-2xl overflow-hidden max-w-[88rem] mx-auto shadow-sm will-change-transform motion-reduce:transform-none"
+        style={{
+          height: 'calc(100vh - 96px)',
+          transform: `scale(${containerScale})`,
+          transformOrigin: 'center bottom',
+          transition: 'transform 0.1s ease-out',
+        }}
       >
         {/* Background video with gold color grading filter and parallax scroll motion */}
         <div

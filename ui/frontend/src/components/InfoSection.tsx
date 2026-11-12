@@ -62,17 +62,24 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1 (spans 2 cols on lg) */}
           <div
-            className="reveal-on-scroll delay-75 lg:col-span-2 rounded-2xl p-7 min-h-80 flex flex-col justify-between overflow-hidden relative shadow-sm transition-transform duration-300 hover:-translate-y-1 group"
+            className="reveal-on-scroll delay-75 card-hover-tilt lg:col-span-2 rounded-2xl p-7 min-h-80 flex flex-col justify-between overflow-hidden relative shadow-sm border border-black/5 group"
             style={{
               backgroundImage: `url('/coins-gold.jpg')`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
           >
+            {/* Subtle gloss overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/20 to-transparent pointer-events-none" />
+
             {/* Title (top) */}
             <div className="relative z-10">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/85 backdrop-blur-md text-black/85 border border-black/10 shadow-xs mb-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Exact 10-K Citations
+              </span>
               <h3
-                className="text-black text-2xl font-medium leading-snug"
+                className="text-black text-2xl md:text-3xl font-medium leading-snug"
                 style={{ letterSpacing: '-0.02em' }}
               >
                 Evidence that reconciles
@@ -81,7 +88,7 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
 
             {/* Body (bottom) */}
             <div className="relative z-10">
-              <p className="text-black/70 text-base max-w-xs leading-relaxed">
+              <p className="text-black/80 text-base max-w-sm leading-relaxed font-medium">
                 Extract balance sheet, income statement, and cash flow values with exact source row citations from filed 10-K HTML.
               </p>
             </div>
@@ -91,7 +98,7 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
           <div
             id="accuracy"
             onClick={onOpenAccuracyReport}
-            className="reveal-on-scroll delay-150 scroll-mt-28 lg:col-span-1 rounded-2xl p-7 min-h-80 flex flex-col justify-between shadow-sm transition-transform duration-300 hover:-translate-y-1 relative group cursor-pointer"
+            className="reveal-on-scroll delay-150 card-hover-tilt animate-border-glow-green scroll-mt-28 lg:col-span-1 rounded-2xl p-7 min-h-80 flex flex-col justify-between shadow-sm border border-emerald-500/25 relative group cursor-pointer"
             style={{ backgroundColor: '#2B2644' }}
             title="Click to view full SEC XBRL Accuracy Report"
           >
@@ -123,10 +130,14 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
 
           {/* Card 3 (solid #2B2644) */}
           <div
-            className="reveal-on-scroll delay-225 lg:col-span-1 rounded-2xl p-7 min-h-80 flex flex-col justify-between shadow-sm transition-transform duration-300 hover:-translate-y-1"
+            className="reveal-on-scroll delay-225 card-hover-tilt lg:col-span-1 rounded-2xl p-7 min-h-80 flex flex-col justify-between shadow-sm border border-white/10"
             style={{ backgroundColor: '#2B2644' }}
           >
             <div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-white/80 border border-white/15 mb-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                Human Oversight
+              </span>
               <h3
                 className="text-white text-2xl font-medium leading-tight whitespace-pre-line"
                 style={{ letterSpacing: '-0.02em' }}

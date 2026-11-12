@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { InfoSection } from './components/InfoSection';
@@ -18,27 +20,58 @@ export function App() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const isDashboardOpen = dashboardTab !== null;
 
-  // Track scroll progress and toggle back-to-top button
+  // Initialize Lenis luxury smooth scroll engine
   useEffect(() => {
-    let ticking = false;
+    const lenis = new Lenis({
+      duration: 1.25,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 1.0,
+      touchMultiplier: 1.8,
+    });
+
+    let rafId: number;
+    function raf(time: number) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+    rafId = requestAnimationFrame(raf);
+
+    // Sync scrollProgress and showBackToTop directly with Lenis smooth scroll events
+    lenis.on('scroll', (e: { scroll: number; limit: number }) => {
+      const currentScroll = e.scroll;
+      const maxScroll = e.limit;
+      const progress = maxScroll > 0 ? Math.min(Math.max(currentScroll / maxScroll, 0), 1) : 0;
+      setScrollProgress(progress);
+      setShowBackToTop(currentScroll > 420);
+    });
+
+    // Also fallback window scroll listener for compatibility
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const currentScroll = window.scrollY;
-          const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-          const progress = maxScroll > 0 ? Math.min(Math.max(currentScroll / maxScroll, 0), 1) : 0;
-          setScrollProgress(progress);
-          setShowBackToTop(currentScroll > 420);
-          ticking = false;
-        });
-        ticking = true;
-      }
+      const currentScroll = window.scrollY;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = maxScroll > 0 ? Math.min(Math.max(currentScroll / maxScroll, 0), 1) : 0;
+      setScrollProgress(progress);
+      setShowBackToTop(currentScroll > 420);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+
+    if (isDashboardOpen) {
+      lenis.stop();
+    } else {
+      lenis.start();
+    }
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('scroll', handleScroll);
+      lenis.destroy();
+    };
+  }, [isDashboardOpen]);
 
   // IntersectionObserver to orchestrate smooth scroll-driven reveals across all sections
   useEffect(() => {
@@ -81,13 +114,25 @@ export function App() {
 
   return (
     <div className="flex flex-col bg-[#F5F5F5] min-h-screen selection:bg-black selection:text-white relative">
-      {/* Top Gold Scroll Progress Bar */}
+      {/* Background ambient lighting orbs that softly drift with scroll */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div
+          className="absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-amber-200/20 via-yellow-100/15 to-transparent blur-3xl will-change-transform animate-ambient-drift"
+          style={{ transform: `translateY(${scrollProgress * 140}px)` }}
+        />
+        <div
+          className="absolute top-1/2 -left-48 w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-indigo-200/15 via-purple-100/10 to-transparent blur-3xl will-change-transform"
+          style={{ transform: `translateY(-${scrollProgress * 120}px)` }}
+        />
+      </div>
+
+      {/* Top Gold Scroll Progress Bar with Glowing Laser Tip */}
       <div
         className="fixed top-0 left-0 right-0 h-[2.5px] z-50 pointer-events-none origin-left transition-transform duration-75 ease-out"
         style={{
           transform: `scaleX(${scrollProgress})`,
-          background: 'linear-gradient(90deg, #F59E0B 0%, #FBBF24 50%, #D97706 100%)',
-          boxShadow: '0 0 10px rgba(245, 158, 11, 0.6)',
+          background: 'linear-gradient(90deg, #F59E0B 0%, #FBBF24 50%, #D97706 90%, #FFFFFF 100%)',
+          boxShadow: '0 0 14px 2px rgba(245, 158, 11, 0.75), 0 0 28px 4px rgba(251, 191, 36, 0.45)',
         }}
         role="progressbar"
         aria-valuenow={Math.round(scrollProgress * 100)}
@@ -110,11 +155,10 @@ export function App() {
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           aria-label="Scroll to top"
-          className={`fixed bottom-6 right-6 z-40 p-3 rounded-full bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-300 hover:bg-black hover:scale-110 active:scale-95 flex items-center justify-center group ${
-            showBackToTop
+          className={`fixed bottom-6 right-6 z-40 p-3 rounded-full bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-300 hover:bg-black hover:scale-110 active:scale-95 flex items-center justify-center group ${showBackToTop
               ? 'opacity-100 translate-y-0 pointer-events-auto'
               : 'opacity-0 translate-y-4 pointer-events-none'
-          }`}
+            }`}
           title="Scroll back to top"
         >
           <svg
@@ -135,9 +179,8 @@ export function App() {
       {/* Landing page: dimmed and inert while the dashboard is open */}
       <div
         aria-hidden={isDashboardOpen || undefined}
-        className={`flex flex-col transition-[transform,opacity,filter] duration-500 ease-out origin-center motion-reduce:transition-none ${
-          isDashboardOpen ? 'scale-[0.985] blur-[1.5px] opacity-70 pointer-events-none' : ''
-        }`}
+        className={`flex flex-col transition-[transform,opacity,filter] duration-500 ease-out origin-center motion-reduce:transition-none ${isDashboardOpen ? 'scale-[0.985] blur-[1.5px] opacity-70 pointer-events-none' : ''
+          }`}
       >
         <div className="h-screen flex flex-col overflow-hidden relative">
           <HeroSection onJoinUs={() => setDashboardTab('runs')} />
