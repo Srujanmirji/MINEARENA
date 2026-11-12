@@ -15,6 +15,7 @@ SIGN = "Sign"
 
 BALANCE = ("total_assets", "total_liabilities", "equity")
 MUST_BE_POSITIVE = ("revenue", "total_assets", "total_liabilities")
+CARRIED_CHECKS = ("Auditor's opinion",)  # set by extract/opinion.py; a failed one escalates via the router
 SCALE_LOW, SCALE_HIGH = 500, 2000  # ratio band that smells like thousands vs millions
 
 
@@ -87,7 +88,8 @@ def _validate_one_filing(values: list[ExtractedValue], segments: list[dict], cfg
 
     out = []
     for v in values:
-        results = []
+        # Filing-level checks made at extraction (the auditor's opinion) are kept, not recomputed.
+        results = [c for c in v.validation if c.get("check") in CARRIED_CHECKS]
         if v.metric in BALANCE:
             results.append(equation)
         if v.metric == "revenue":

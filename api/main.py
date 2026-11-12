@@ -468,6 +468,31 @@ def source_evidence(thread_id: str, value_id: str) -> dict:
     }
 
 
+@app.get("/runs/{thread_id}/explain/{value_id}")
+def explain_change(thread_id: str, value_id: str) -> dict:
+    """Bonus B-2: 2-sentence AI explanation of a year-on-year change, from the filing's MD&A (Item 7).
+    Labelled AI-generated; never reads XBRL. On demand only (one cached LLM call per value)."""
+    value = db.get_value(value_id)
+    if value is None or value["thread_id"] != thread_id:
+        raise HTTPException(status_code=404, detail="unknown value for this run")
+    if value.get("value") is None or not value.get("prior_value"):
+        raise HTTPException(status_code=422, detail="no current and prior-year values to compare")
+    filing = db.get_filing(value["accession"])
+    if filing is None:
+        raise HTTPException(status_code=404, detail="filing not recorded")
+    try:
+        from extract.explain import explain_anomaly
+    except ImportError:
+        raise HTTPException(status_code=503, detail="explain module not available")
+    meta = {"cik": filing["cik"], "accession": filing["accession"], "primary_document": filing["primary_document"],
+            "ticker": filing["ticker"], "company": filing.get("company") or filing["ticker"]}
+    try:
+        text = explain_anomaly(meta, value["metric"], float(value["value"]), float(value["prior_value"]))
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"explanation unavailable: {e}")
+    return {"explanation": text, "source": "Item 7, Management's Discussion and Analysis (MD&A)"}
+
+
 # ---------- accuracy report (Srujan's verify.report) ----------
 
 REPORT_COLUMNS = ["value_id", "thread_id", "ticker", "metric", "status", "confidence", "escalation_reason",

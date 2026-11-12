@@ -159,6 +159,10 @@ export const api = {
   source: (threadId: string, valueId: string) =>
     request<SourceEvidence>(`/runs/${encodeURIComponent(threadId)}/source/${encodeURIComponent(valueId)}`),
 
+  /** AI-generated explanation of a year-on-year change, from the filing's MD&A. */
+  explain: (threadId: string, valueId: string) =>
+    request<{ explanation: string; source: string }>(`/runs/${encodeURIComponent(threadId)}/explain/${encodeURIComponent(valueId)}`),
+
   values: (filter: { ticker?: string; thread_id?: string } = {}) => request<ExtractedValue[]>('/values' + query(filter)),
   validations: (ticker?: string) => request<ValidationRow[]>('/validations' + query({ ticker })),
 

@@ -4,6 +4,7 @@ import { api, ApiError, type Action, type PendingItem } from '../../api';
 import { CHECK_STYLE, METRIC_LABEL, errorText, tableNumber, unitText } from './format';
 import { Empty, ErrorBox, Loading } from './states';
 import { SourceEvidence } from './SourceEvidence';
+import { ExplainChange } from './ExplainChange';
 import { useApi } from './useApi';
 
 interface Props {
@@ -87,6 +88,7 @@ export function ReviewTab({ threshold, onDecided, onOpenRuns }: Props) {
         </div>
         <div className="lg:col-span-5 space-y-6">
           <ValueCard item={item} threshold={threshold} />
+          <ExplainChange key={`explain-${item.value.id}`} item={item} />
           <DecisionForm key={item.value.id} item={item} onDone={(msg) => { onDecided(msg); queue.reload(); }} />
         </div>
       </div>

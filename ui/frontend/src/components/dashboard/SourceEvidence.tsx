@@ -33,7 +33,9 @@ export function SourceEvidence({ threadId, value }: { threadId: string; value: E
         <div>
           <h2 id="source-heading" className="text-base font-bold text-gray-900">Source evidence</h2>
           <p className="text-xs text-gray-600 mt-0.5">
-            {src.data ? `${src.data.heading || 'Statement table'}${src.data.scale_text ? ` · ${src.data.scale_text}` : ''}` : value.source_page}
+            {src.data
+              ? `10-K Item 8, audited financial statements · ${src.data.heading || 'Statement table'}${src.data.scale_text ? ` · ${src.data.scale_text}` : ''}`
+              : value.source_page}
           </p>
         </div>
         {src.data?.source_url && (

@@ -309,7 +309,20 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
         )
         models.append(val_obj)
 
+    # Filing-level: the auditor's opinion (Item 8). Carried on every value's validation list so the
+    # router sends the whole filing to a human on a red flag (no core/models.py change needed).
+    opinion = _auditor_opinion(meta)
+    models = [v.model_copy(update={"validation": [opinion]}) for v in models]
     return models, segments
+
+
+def _auditor_opinion(meta: dict) -> dict:
+    from extract.opinion import CHECK, check_opinion
+    try:
+        html = strip_ixbrl(get_primary_doc(meta["cik"], meta["accession"], meta["primary_document"]))
+        return check_opinion(BeautifulSoup(html, "lxml").get_text(" "))
+    except Exception as e:   # never block extraction on this check
+        return {"check": CHECK, "severity": "hard", "status": "na", "detail": f"could not read the auditor's report: {e}"}
 
 
 if __name__ == "__main__":

@@ -49,9 +49,15 @@ PARENT_EQUITY = re.compile(r"^total (?!shareholders|stockholders|shareowners)[\w
 EXTRA_SYNONYMS = {"total_equity": ["total equity", "total shareholders' equity", "total stockholders' equity"]}
 
 
+NON_GAAP_WORDS = ("non-gaap", "non gaap", "adjusted", "pro forma", "pro-forma")
+
+
 def label_allowed(metric: str, label: str) -> bool:
     """Rows that can never be this metric. Shared by both extractors (parser and LLM)."""
     lbl = label.lower().strip()
+    # Non-GAAP figures "do NOT conform to GAAP" (SEC, How to Read a 10-K): never one of our 9 metrics.
+    if any(w in lbl for w in NON_GAAP_WORDS):
+        return False
     if metric == "total_equity":
         return "total" in lbl and "equity" in lbl and "liabilities" not in lbl and "noncontrolling" not in lbl
     if metric == "eps_diluted":
