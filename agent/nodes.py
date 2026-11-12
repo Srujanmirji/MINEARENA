@@ -56,6 +56,12 @@ except ImportError:
     HAVE_ROUTER = False
 
 try:
+    from verify.xbrl import verify_filing
+    HAVE_VERIFY = True
+except ImportError:
+    HAVE_VERIFY = False
+
+try:
     from verify.report import build_report as verify_build_report
     HAVE_REPORT = True
 except ImportError:
@@ -87,6 +93,26 @@ def _meta(state: AuditState) -> dict:
     return {k: state.get(k) for k in ("ticker", "cik", "accession", "fiscal_year", "period_end", "primary_document")}
 
 
+def is_mock(ticker: str) -> bool:
+    """MOCK* tickers are fixtures: always served from mock_values.json, never from SEC."""
+    return ticker.upper().startswith("MOCK")
+
+
+def resolve_filing(ticker: str) -> dict:
+    """Which filing a run is about. Used by fetch_filing and by the API to build thread_id."""
+    ticker = ticker.upper()
+    if HAVE_EDGAR and not is_mock(ticker):
+        cik = get_cik(ticker)
+        meta = get_latest_10k(cik)
+        return {"ticker": ticker, "cik": cik, "accession": meta["accession"],
+                "fiscal_year": meta["fiscal_year"], "period_end": meta["period_end"],
+                "primary_document": meta["primary_document"], "company": meta.get("company")}
+    r = _mock_rows(ticker)[0]
+    return {"ticker": ticker, "cik": r["cik"], "accession": r["accession"],
+            "fiscal_year": r["fiscal_year"], "period_end": r["period_end"],
+            "primary_document": r.get("source_page", ""), "company": r.get("company")}
+
+
 def _mock_rows(ticker: str) -> list[dict]:
     rows = [r for r in json.loads(settings.MOCK_VALUES.read_text()) if r["ticker"] == ticker]
     if not rows:
@@ -115,23 +141,11 @@ def _stub_confidence(v: dict, period_end: str) -> tuple[float, dict]:
 # ---------- nodes ----------
 
 def fetch_filing(state: AuditState) -> dict:
-    ticker = state["ticker"].upper()
-    if HAVE_EDGAR:
-        cik = get_cik(ticker)
-        meta = get_latest_10k(cik)
-        out = {"ticker": ticker, "cik": cik, "accession": meta["accession"],
-               "fiscal_year": meta["fiscal_year"], "period_end": meta["period_end"],
-               "primary_document": meta["primary_document"]}
-        company = meta.get("company")
-    else:
-        r = _mock_rows(ticker)[0]
-        out = {"ticker": ticker, "cik": r["cik"], "accession": r["accession"],
-               "fiscal_year": r["fiscal_year"], "period_end": r["period_end"],
-               "primary_document": r.get("source_page", "")}
-        company = r.get("company")
-    db.upsert_filing({**out, "company": company})
-    print(f"[nodes] fetch_filing {ticker} -> {out['accession']} (edgar={'real' if HAVE_EDGAR else 'stub'})")
-    return out
+    meta = resolve_filing(state["ticker"])
+    db.upsert_filing(meta)
+    real = HAVE_EDGAR and not is_mock(meta["ticker"])
+    print(f"[nodes] fetch_filing {meta['ticker']} -> {meta['accession']} (edgar={'real' if real else 'stub'})")
+    return {k: v for k, v in meta.items() if k != "company"}
 
 
 def _locate_full(state: AuditState) -> dict[str, dict]:
@@ -140,7 +154,7 @@ def _locate_full(state: AuditState) -> dict[str, dict]:
 
 
 def locate_statements_node(state: AuditState) -> dict:
-    if HAVE_EDGAR and HAVE_LOCATE:
+    if HAVE_EDGAR and HAVE_LOCATE and not is_mock(state["ticker"]):
         full = _locate_full(state)
         tables = {k: {kk: vv for kk, vv in t.items() if kk != "html"} for k, t in full.items()}
     else:
@@ -152,7 +166,7 @@ def locate_statements_node(state: AuditState) -> dict:
 
 def extract(state: AuditState, config: RunnableConfig) -> dict:
     tid = _thread_id(config)
-    if HAVE_EDGAR and HAVE_LOCATE and HAVE_EXTRACT:
+    if HAVE_EDGAR and HAVE_LOCATE and HAVE_EXTRACT and not is_mock(state["ticker"]):
         full = _locate_full(state)   # re-read from disk cache; table HTML stays out of the checkpoint
         values, segments = extract_filing(_meta(state), full)
         values = _dump(values)
@@ -276,9 +290,13 @@ def apply_decision(state: AuditState, config: RunnableConfig) -> dict:
 
 
 def verify_vs_xbrl(state: AuditState) -> dict:
-    # Stub until Srujan's verify.xbrl lands. Rule 3: XBRL Company Facts may only be
-    # fetched inside verify/, so the real call must come from a verify/ entry point.
-    print("[nodes] verify_vs_xbrl (stub: no verification)")
+    # Rule 3: XBRL Company Facts are fetched only inside verify/ (verify_filing does it).
+    # Mock fixtures have no ground truth, and verify_filing needs Mayur's edgar client.
+    if HAVE_VERIFY and HAVE_EDGAR and not is_mock(state["ticker"]):
+        rows = verify_filing(_models(state["values"]), state["cik"], state["accession"])   # INSERT OR REPLACE by value_id
+        print(f"[nodes] verify_vs_xbrl -> {len(rows)} rows")
+    else:
+        print("[nodes] verify_vs_xbrl (skipped: mock fixture or edgar client not available)")
     return {}
 
 

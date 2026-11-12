@@ -7,10 +7,11 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
-DATA_DIR = ROOT / "data"
+# AUDITLOOP_DATA_DIR lets tests (api/test_flow.py) use a throwaway DB folder.
+DATA_DIR = Path(os.getenv("AUDITLOOP_DATA_DIR") or ROOT / "data")
 APP_DB = DATA_DIR / "app.db"
 CHECKPOINT_DB = DATA_DIR / "checkpoints.db"
-MOCK_VALUES = DATA_DIR / "mock_values.json"
+MOCK_VALUES = ROOT / "data" / "mock_values.json"
 
 
 def _float(*names: str, default: float) -> float:

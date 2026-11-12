@@ -117,11 +117,12 @@ def init_db() -> None:
                 [(k, str(v)) for k, v in CONFIG_SEEDS.items()],
             )
         try:
-            from audit.log import init_tables
+            import audit.log as audit_log
         except ImportError:
             print("[db] WARNING: audit.log.init_tables not available yet; audit_log table not created")
         else:
-            init_tables(conn)
+            audit_log.DB_PATH = config.APP_DB   # audit rows live in the same file as everything else
+            audit_log.init_tables(conn)
             conn.commit()
     print(f"[db] init_db ok: {config.APP_DB}")
 
@@ -243,6 +244,12 @@ def record_decision(d: dict) -> bool:
              d.get("reviewer") or "reviewer", d.get("note"), _now()),
         )
         return cur.rowcount == 1
+
+
+def get_decision(decision_id: str) -> dict | None:
+    with closing(connect()) as conn:
+        row = conn.execute("SELECT * FROM review_decisions WHERE decision_id=?", (decision_id,)).fetchone()
+        return dict(row) if row else None
 
 
 def decision_exists(decision_id: str) -> bool:
