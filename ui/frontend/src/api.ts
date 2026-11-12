@@ -57,10 +57,12 @@ export interface ExtractedValue {
 
 export interface Health { ok: boolean; db: boolean; llm_provider: string; paused_runs: number }
 export interface StartRunResult { thread_id: string; status: RunStatus; created: boolean }
+export interface SegmentItem { segment: string; value: number }
 export interface RunSummary {
   thread_id: string; ticker: string; status: RunStatus;
   accession?: string | null; period_end?: string | null;
   steps_done?: string[]; next?: string[];
+  segments?: SegmentItem[];
   n_values: number; n_pending: number; n_auto: number; n_reviewed: number; error: string | null;
 }
 export interface RunDetail {

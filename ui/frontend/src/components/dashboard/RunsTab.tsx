@@ -122,25 +122,59 @@ export function RunsTab({ onReview, onConfigChange, config }: Props) {
           </span>
         </div>
 
-        {/* Ticker launch buttons with glowing liquid sheen and micro-hover physics */}
+        {/* Ticker launch buttons with live run status badges */}
         <div className="flex flex-wrap gap-2.5">
-          {TICKERS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              disabled={starting !== null}
-              onClick={() => start(t)}
-              className="relative group inline-flex items-center gap-2.5 min-h-11 px-5 rounded-full bg-gradient-to-b from-zinc-800 to-black text-white text-sm font-semibold border border-white/15 shadow-[0_4px_14px_rgba(0,0,0,0.2)] hover:shadow-[0_8px_25px_rgba(0,0,0,0.35),0_0_20px_rgba(245,158,11,0.25)] hover:border-amber-400/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 disabled:opacity-50 overflow-hidden cursor-pointer"
-            >
-              {/* Shimmer sweep effect */}
-              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+          {TICKERS.map((t) => {
+            const run = [...list].reverse().find((r) => r.ticker === t);
+            const isBusy = starting === t || run?.status === 'running';
+            return (
+              <button
+                key={t}
+                type="button"
+                disabled={starting !== null}
+                onClick={() => start(t)}
+                className={`relative group inline-flex items-center gap-2.5 min-h-11 px-4 rounded-full text-sm font-semibold border shadow-[0_4px_14px_rgba(0,0,0,0.2)] hover:shadow-[0_8px_25px_rgba(0,0,0,0.35),0_0_20px_rgba(245,158,11,0.25)] hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 disabled:opacity-50 overflow-hidden cursor-pointer ${
+                  run?.status === 'paused'
+                    ? 'bg-gradient-to-b from-amber-900 to-amber-950 text-white border-amber-400/60'
+                    : run?.status === 'done'
+                      ? 'bg-gradient-to-b from-emerald-900 to-zinc-950 text-white border-emerald-400/50'
+                      : 'bg-gradient-to-b from-zinc-800 to-black text-white border-white/15 hover:border-amber-400/50'
+                }`}
+              >
+                {/* Shimmer sweep effect */}
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
 
-              <span className="p-1 rounded-full bg-white/10 group-hover:bg-amber-400/20 transition-colors">
-                <Play className="w-3 h-3 text-white group-hover:text-amber-400 transition-colors" />
-              </span>
-              <span className="tracking-wide">{starting === t ? 'Starting…' : t}</span>
-            </button>
-          ))}
+                <span className="p-1 rounded-full bg-white/10 group-hover:bg-amber-400/20 transition-colors">
+                  {isBusy ? (
+                    <RefreshCw className="w-3 h-3 text-amber-300 animate-spin" />
+                  ) : (
+                    <Play className="w-3 h-3 text-white group-hover:text-amber-400 transition-colors" />
+                  )}
+                </span>
+                <span className="tracking-wide">{starting === t ? 'Starting…' : t}</span>
+                {run?.status === 'paused' && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-amber-950">
+                    ⏸ {run.n_pending} waiting
+                  </span>
+                )}
+                {run?.status === 'done' && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/40">
+                    ✓ Done
+                  </span>
+                )}
+                {run?.status === 'running' && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-400/20 text-blue-200 border border-blue-400/40">
+                    Running
+                  </span>
+                )}
+                {run?.status === 'error' && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-400/20 text-red-200 border border-red-400/40">
+                    Error
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         <p className="text-xs text-gray-500 mt-3 leading-relaxed">
@@ -647,41 +681,82 @@ function Settings({ config, onSaved }: { config: Config | null; onSaved: (c: Con
         </div>
       )}
 
-      {/* #3: Side-by-Side Adaptive Escalation Threshold from Reviewer Feedback */}
-      <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 text-xs text-amber-950 flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="font-bold text-amber-950">Adaptive Threshold Calibration (from Human Audit Log)</div>
-          {humanRows.length === 0 ? (
-            <p className="text-amber-900">No human review decisions logged yet. Approve, correct, or reject escalated values to calibrate automatically.</p>
-          ) : (
-            <p className="text-amber-900">
-              Logged <strong>{humanRows.length} human decisions</strong>: <strong>{approvedAsIs}</strong> approved unchanged ({Math.round((approvalRate ?? 0) * 100)}% precision) · <strong>{changedOrRejected}</strong> corrected/rejected.
-            </p>
+      {/* #3 & PRD B-1: Side-by-Side Adaptive Escalation Threshold + Before/After Impact Table */}
+      <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 text-xs text-amber-950 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1">
+            <div className="font-bold text-amber-950">Adaptive Threshold Calibration (PRD B-1 · Reviewer Feedback)</div>
+            {humanRows.length === 0 ? (
+              <p className="text-amber-900">No human review decisions logged yet. Approve, correct, or reject escalated values to calibrate automatically.</p>
+            ) : (
+              <p className="text-amber-900">
+                Logged <strong>{humanRows.length} human decisions</strong>: <strong>{approvedAsIs}</strong> approved unchanged ({Math.round((approvalRate ?? 0) * 100)}% agreement) · <strong>{changedOrRejected}</strong> corrected/rejected. Validation &amp; derived safety gates remain untouched.
+              </p>
+            )}
+          </div>
+
+          {humanRows.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-amber-200 font-mono text-gray-800">
+                Before (Saved): <strong>{config.threshold.toFixed(2)}</strong>
+              </span>
+              {suggestedThreshold !== null && (
+                <span className="px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 font-mono text-amber-950">
+                  After (Suggested): <strong>{suggestedThreshold.toFixed(2)}</strong>
+                </span>
+              )}
+              {suggestedThreshold !== null && Math.abs(suggestedThreshold - t) > 1e-6 && (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => save({ threshold: suggestedThreshold, yoy_threshold: y, equation_tolerance: eq })}
+                  className="px-3.5 py-1.5 rounded-full bg-amber-900 text-white font-semibold hover:bg-amber-950 shrink-0 disabled:opacity-50 cursor-pointer"
+                >
+                  Apply {suggestedThreshold.toFixed(2)}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
-        {humanRows.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-1 rounded-lg bg-white border border-amber-200 font-mono text-gray-800">
-              Saved: <strong>{config.threshold.toFixed(2)}</strong>
-            </span>
-            {suggestedThreshold !== null && (
-              <span className="px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 font-mono text-amber-950">
-                Suggested: <strong>{suggestedThreshold.toFixed(2)}</strong>
-              </span>
-            )}
-            {suggestedThreshold !== null && Math.abs(suggestedThreshold - t) > 1e-6 && (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => save({ threshold: suggestedThreshold, yoy_threshold: y, equation_tolerance: eq })}
-                className="px-3.5 py-1.5 rounded-full bg-amber-900 text-white font-semibold hover:bg-amber-950 shrink-0 disabled:opacity-50 cursor-pointer"
-              >
-                Apply {suggestedThreshold.toFixed(2)}
-              </button>
-            )}
-          </div>
-        )}
+        {suggestedThreshold !== null && suggestedThreshold !== config.threshold && allVals.length > 0 && (() => {
+          const after = evalRouting(suggestedThreshold, config.yoy_threshold, savedEq);
+          const escDiff = after.escalated - baseline.escalated;
+          return (
+            <div className="bg-white/90 rounded-lg border border-amber-200/80 overflow-x-auto">
+              <table className="w-full text-left text-[11px] tabular-nums">
+                <thead className="bg-amber-100/50 text-amber-950 font-semibold border-b border-amber-200/70">
+                  <tr>
+                    <th className="py-2 px-3">Calibration policy</th>
+                    <th className="py-2 px-3 text-right">Threshold</th>
+                    <th className="py-2 px-3 text-right">Auto-approved</th>
+                    <th className="py-2 px-3 text-right">Human escalations</th>
+                    <th className="py-2 px-3 text-right">Validation gates</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-100">
+                  <tr>
+                    <td className="py-2 px-3 font-medium text-gray-700">Before (Current saved)</td>
+                    <td className="py-2 px-3 text-right font-mono">{config.threshold.toFixed(2)}</td>
+                    <td className="py-2 px-3 text-right font-semibold text-emerald-800">{baseline.auto}</td>
+                    <td className="py-2 px-3 text-right font-semibold text-amber-900">{baseline.escalated}</td>
+                    <td className="py-2 px-3 text-right text-gray-600">All enforced</td>
+                  </tr>
+                  <tr className="bg-emerald-50/40">
+                    <td className="py-2 px-3 font-bold text-gray-900">After (Adaptive calibration)</td>
+                    <td className="py-2 px-3 text-right font-mono font-bold">{suggestedThreshold.toFixed(2)}</td>
+                    <td className="py-2 px-3 text-right font-bold text-emerald-800">{after.auto}</td>
+                    <td className="py-2 px-3 text-right font-bold text-amber-900">
+                      {after.escalated}{' '}
+                      {escDiff !== 0 && <span className="text-emerald-700">({escDiff > 0 ? `+${escDiff}` : escDiff})</span>}
+                    </td>
+                    <td className="py-2 px-3 text-right font-semibold text-emerald-800">All enforced (0 relaxed)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Save Row with Unsaved Changes Indicator */}

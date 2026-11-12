@@ -1,14 +1,22 @@
 import { useState } from 'react';
-import { api, type ExtractedValue } from '../../api';
+import { api, type ExtractedValue, type Metric, type SegmentItem } from '../../api';
 import { CHECK_STYLE, METRIC_LABEL, STATUS_STYLE, TICKERS, tableNumber, unitText } from './format';
 import { Empty, ErrorBox, Loading } from './states';
 import { useApi } from './useApi';
 import { RunAuditPanel } from './RunAuditPanel';
 
+const ALL_METRICS: Metric[] = [
+  'revenue', 'gross_profit', 'operating_income', 'net_income', 'eps_diluted',
+  'total_assets', 'total_liabilities', 'equity', 'long_term_debt',
+  'operating_cash_flow', 'capex', 'free_cash_flow', 'cash',
+];
+
 /** PS 3.7: extracted metrics, confidence scores and validation results, per company. */
 export function ValuesTab() {
   const values = useApi(() => api.values());
+  const runs = useApi(api.listRuns);
   const [ticker, setTicker] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'company' | 'matrix'>('company');
 
   if (values.isLoading && !values.data) return <Loading label="Loading extracted values…" />;
   if (values.error && !values.data) return <ErrorBox message={values.error} onRetry={values.reload} />;
@@ -18,49 +26,216 @@ export function ValuesTab() {
   const tickers = [...TICKERS.filter((t) => seen.includes(t)), ...seen.filter((t) => !(TICKERS as readonly string[]).includes(t)).sort()];
   const shown = ticker || tickers[0] || '';
   const rows = all.filter((v) => v.ticker === shown);
+  const activeThreadId = rows[0]?.thread_id;
+  const runMeta = (runs.data ?? []).find((r) => r.thread_id === activeThreadId);
+  const segments = runMeta?.segments ?? [];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <header>
-        <h1 className="text-3xl font-bold text-gray-900">Extracted values</h1>
-        <p className="text-sm text-gray-600 mt-1">Every metric with its period, unit, source row, confidence and validation results.</p>
-      </header>
-      {all.length === 0 && <Empty title="No values yet">Start a run on the Runs tab.</Empty>}
-      {tickers.length > 0 && (
-        <div role="group" aria-label="Company" className="flex flex-wrap gap-2">
-          {tickers.map((t) => (
-            <button key={t} type="button" aria-pressed={t === shown} onClick={() => setTicker(t)}
-              className={`min-h-11 px-4 rounded-full text-sm font-semibold border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black ${t === shown ? 'bg-black text-white border-black' : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50'}`}>
-              {t}
+    <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Extracted values</h1>
+          <p className="text-sm text-gray-600 mt-1">Every metric with its period, unit, source row, confidence and validation results.</p>
+        </div>
+        {tickers.length >= 2 && (
+          <div className="inline-flex rounded-full border border-gray-300 bg-white p-1 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setViewMode('company')}
+              className={`px-3.5 py-1.5 rounded-full transition-colors cursor-pointer ${viewMode === 'company' ? 'bg-black text-white' : 'text-gray-700 hover:text-black'}`}
+            >
+              Company breakdown
             </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('matrix')}
+              className={`px-3.5 py-1.5 rounded-full transition-colors cursor-pointer ${viewMode === 'matrix' ? 'bg-black text-white' : 'text-gray-700 hover:text-black'}`}
+            >
+              Compare all ({tickers.length})
+            </button>
+          </div>
+        )}
+      </header>
+
+      {all.length === 0 && <Empty title="No values yet">Start a run on the Runs tab.</Empty>}
+
+      {viewMode === 'matrix' && tickers.length >= 2 && (
+        <PeerMatrix tickers={tickers} all={all} />
+      )}
+
+      {viewMode === 'company' && (
+        <>
+          {tickers.length > 0 && (
+            <div role="group" aria-label="Company" className="flex flex-wrap gap-2">
+              {tickers.map((t) => (
+                <button key={t} type="button" aria-pressed={t === shown} onClick={() => setTicker(t)}
+                  className={`min-h-11 px-4 rounded-full text-sm font-semibold border cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black ${t === shown ? 'bg-black text-white border-black' : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50'}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+          {rows.length > 0 && <FilingSummary rows={rows} />}
+          {rows.length > 0 && <FinancialRatios rows={rows} />}
+          {segments.length > 0 && <SegmentBreakdown ticker={shown} revenue={rows.find((r) => r.metric === 'revenue')} segments={segments} />}
+          {rows.length > 0 && rows[0].thread_id && (
+            <RunAuditPanel key={rows[0].thread_id} threadId={rows[0].thread_id}
+              isDecided={rows.every((v) => v.status !== 'escalated' && v.status !== 'extracted')} />
+          )}
+          {rows.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
+              <table className="w-full text-left text-sm min-w-[56rem]">
+                <thead className="bg-gray-50 text-xs text-gray-600 font-semibold border-b border-gray-200">
+                  <tr>
+                    <th scope="col" className="py-3 px-4">Metric</th>
+                    <th scope="col" className="py-3 px-4 text-right">Value</th>
+                    <th scope="col" className="py-3 px-4">Period</th>
+                    <th scope="col" className="py-3 px-4">Source row</th>
+                    <th scope="col" className="py-3 px-4 text-right">Confidence</th>
+                    <th scope="col" className="py-3 px-4">Checks</th>
+                    <th scope="col" className="py-3 px-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 align-top">
+                  {rows.map((v) => <ValueRow key={v.id} v={v} />)}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function FinancialRatios({ rows }: { rows: ExtractedValue[] }) {
+  const by: Partial<Record<Metric, number | null>> = {};
+  for (const r of rows) by[r.metric] = r.final_value ?? r.value;
+  const rev = by.revenue;
+  const gp = by.gross_profit;
+  const opInc = by.operating_income;
+  const ni = by.net_income;
+  const assets = by.total_assets;
+  const liab = by.total_liabilities;
+  const eq = by.equity;
+  const ocf = by.operating_cash_flow;
+
+  const ratios = [
+    { label: 'Gross margin', val: rev && gp ? `${((gp / rev) * 100).toFixed(1)}%` : null, sub: 'Gross profit / Revenue' },
+    { label: 'Operating margin', val: rev && opInc ? `${((opInc / rev) * 100).toFixed(1)}%` : null, sub: 'Operating income / Revenue' },
+    { label: 'Net margin', val: rev && ni ? `${((ni / rev) * 100).toFixed(1)}%` : null, sub: 'Net income / Revenue' },
+    { label: 'Return on equity', val: eq && ni ? `${((ni / eq) * 100).toFixed(1)}%` : null, sub: 'Net income / Equity' },
+    { label: 'Liabilities / Assets', val: assets && liab ? `${((liab / assets) * 100).toFixed(1)}%` : null, sub: 'Financial leverage' },
+    { label: 'Cash conversion', val: ni && ocf ? `${(ocf / ni).toFixed(2)}×` : null, sub: 'OCF / Net income' },
+  ].filter((x) => x.val !== null);
+
+  if (!ratios.length) return null;
+
+  return (
+    <section aria-labelledby="ratios-heading" className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="ratios-heading" className="text-sm font-bold text-gray-900">Computed Financial Ratios</h2>
+        <span className="text-xs text-gray-500">Derived live from verified 10-K metrics</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+        {ratios.map((r) => (
+          <div key={r.label} className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+            <div className="text-gray-500 font-medium">{r.label}</div>
+            <div className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">{r.val}</div>
+            <div className="text-[11px] text-gray-500 mt-0.5">{r.sub}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SegmentBreakdown({ ticker, revenue, segments }: { ticker: string; revenue?: ExtractedValue; segments: SegmentItem[] }) {
+  const segSum = segments.reduce((s, item) => s + Number(item.value || 0), 0);
+  const revVal = revenue ? (revenue.final_value ?? revenue.value) : null;
+  const diffPct = revVal ? Math.abs(segSum - revVal) / Math.abs(revVal) * 100 : null;
+  return (
+    <section aria-labelledby="segments-heading" className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 id="segments-heading" className="text-sm font-bold text-gray-900">{ticker} Segment Revenue Validation ({segments.length} segments)</h2>
+          <p className="text-xs text-gray-600 mt-0.5">
+            Sum of reported 10-K segments: <strong className="tabular-nums">{segSum.toLocaleString('en-US')}</strong>
+            {revVal !== null && (
+              <> vs. Total Revenue <strong className="tabular-nums">{revVal.toLocaleString('en-US')}</strong> {revenue ? unitText(revenue) : ''}</>
+            )}
+          </p>
+        </div>
+        {diffPct !== null && (
+          <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${diffPct <= 0.5 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+            {diffPct <= 0.05 ? 'Exact match (0.0% gap)' : `Variance: ${diffPct.toFixed(2)}%`}
+          </span>
+        )}
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
+        {segments.map((seg) => {
+          const share = segSum ? (seg.value / segSum) * 100 : 0;
+          return (
+            <div key={seg.segment} className="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-gray-900 truncate" title={seg.segment}>{seg.segment}</span>
+                <span className="font-mono font-bold text-gray-800 shrink-0">{share.toFixed(1)}%</span>
+              </div>
+              <div className="text-sm font-extrabold text-gray-900 tabular-nums mt-1">
+                {seg.value.toLocaleString('en-US')} {revenue ? <span className="text-[11px] font-normal text-gray-500">{unitText(revenue)}</span> : ''}
+              </div>
+              <div className="h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden">
+                <div className="h-full bg-gray-900 rounded-full" style={{ width: `${Math.min(100, Math.max(4, share))}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function PeerMatrix({ tickers, all }: { tickers: string[]; all: ExtractedValue[] }) {
+  const byKey = new Map<string, ExtractedValue>();
+  for (const v of all) byKey.set(`${v.ticker}:${v.metric}`, v);
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
+      <div className="p-4 border-b border-gray-200">
+        <h2 className="text-sm font-bold text-gray-900">Cross-Company 10-K Comparison Matrix</h2>
+        <p className="text-xs text-gray-600 mt-0.5">Values shown in each filing&apos;s native statement scale with confidence score and review status.</p>
+      </div>
+      <table className="w-full text-left text-xs min-w-[56rem]">
+        <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+          <tr>
+            <th scope="col" className="py-3 px-4">Metric</th>
+            {tickers.map((t) => (
+              <th scope="col" key={t} className="py-3 px-4 text-right font-bold text-gray-900">{t}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 tabular-nums">
+          {ALL_METRICS.map((m) => (
+            <tr key={m} className="hover:bg-gray-50/70">
+              <th scope="row" className="py-2.5 px-4 font-semibold text-gray-900">{METRIC_LABEL[m]}</th>
+              {tickers.map((t) => {
+                const v = byKey.get(`${t}:${m}`);
+                if (!v) return <td key={t} className="py-2.5 px-4 text-right text-gray-400">—</td>;
+                const final = v.final_value ?? v.value;
+                const st = STATUS_STYLE[v.status];
+                return (
+                  <td key={t} className="py-2.5 px-4 text-right">
+                    <div className="font-bold text-gray-900">{tableNumber(v, final)}</div>
+                    <div className="text-[11px] text-gray-500 flex items-center justify-end gap-1 mt-0.5">
+                      <span>{v.confidence.toFixed(2)}</span>
+                      <span className={`px-1.5 rounded-full font-semibold ${st.cls}`}>{st.label}</span>
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
           ))}
-        </div>
-      )}
-      {rows.length > 0 && <FilingSummary rows={rows} />}
-      {rows.length > 0 && rows[0].thread_id && (
-        <RunAuditPanel key={rows[0].thread_id} threadId={rows[0].thread_id}
-          isDecided={rows.every((v) => v.status !== 'escalated' && v.status !== 'extracted')} />
-      )}
-      {rows.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
-          <table className="w-full text-left text-sm min-w-[56rem]">
-            <thead className="bg-gray-50 text-xs text-gray-600 font-semibold border-b border-gray-200">
-              <tr>
-                <th scope="col" className="py-3 px-4">Metric</th>
-                <th scope="col" className="py-3 px-4 text-right">Value</th>
-                <th scope="col" className="py-3 px-4">Period</th>
-                <th scope="col" className="py-3 px-4">Source row</th>
-                <th scope="col" className="py-3 px-4 text-right">Confidence</th>
-                <th scope="col" className="py-3 px-4">Checks</th>
-                <th scope="col" className="py-3 px-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 align-top">
-              {rows.map((v) => <ValueRow key={v.id} v={v} />)}
-            </tbody>
-          </table>
-        </div>
-      )}
+        </tbody>
+      </table>
     </div>
   );
 }

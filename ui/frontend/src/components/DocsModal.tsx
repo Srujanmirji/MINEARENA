@@ -36,14 +36,24 @@ export const DocsModal: React.FC<DocsModalProps> = ({
               <p className="text-xs text-black/50">Human-in-the-Loop Financial Filing Auditor Agent</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-full text-black/50 hover:text-black hover:bg-black/5 transition-colors"
-            aria-label="Close dialog"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/pitch.html"
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-black text-white hover:bg-black/80 transition-colors"
+            >
+              Architecture &amp; Results Slide ↗
+            </a>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-full text-black/50 hover:text-black hover:bg-black/5 transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Tab Navigation */}

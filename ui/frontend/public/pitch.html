@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuditLoop · PS-01 Architecture & Results Pitch Deck</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --card: #ffffff;
+        --ink: #0f172a;
+        --muted: #475569;
+        --subtle: #64748b;
+        --border: rgba(15, 23, 42, 0.1);
+        --green-bg: #ecfdf5;
+        --green-fg: #047857;
+        --amber-bg: #fffbeb;
+        --amber-fg: #b45309;
+        --red-bg: #fef2f2;
+        --red-fg: #b91c1c;
+        --blue-bg: #eff6ff;
+        --blue-fg: #1d4ed8;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Top presenter bar */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 24px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: -0.01em;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--muted);
+      }
+
+      .nav-pills {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .pill-btn {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .pill-btn:hover {
+        border-color: rgba(15, 23, 42, 0.3);
+        color: var(--ink);
+      }
+
+      .pill-btn.active {
+        background: var(--ink);
+        color: #fff;
+        border-color: var(--ink);
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 6px 13px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .btn.primary {
+        background: var(--ink);
+        color: #fff;
+        border-color: var(--ink);
+      }
+
+      /* Stage */
+      .stage {
+        max-width: 1240px;
+        margin: 24px auto 48px;
+        padding: 0 20px;
+      }
+
+      .slide {
+        display: none;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 36px 40px;
+        box-shadow: 0 12px 36px rgba(15, 23, 42, 0.05);
+        min-height: 640px;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .slide.active {
+        display: flex;
+      }
+
+      .slide-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 18px;
+      }
+
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--subtle);
+        margin-bottom: 6px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 32px;
+        line-height: 1.15;
+        letter-spacing: -0.025em;
+        font-weight: 650;
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        font-size: 15px;
+        color: var(--muted);
+        max-width: 78ch;
+        line-height: 1.5;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 18px 20px;
+        background: #fcfcfd;
+      }
+
+      .card.dark {
+        background: #0f172a;
+        color: #f8fafc;
+        border-color: #0f172a;
+      }
+
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+
+      .card p,
+      .card li {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+
+      .card.dark p,
+      .card.dark li {
+        color: #cbd5e1;
+      }
+
+      .kpi {
+        font-family: var(--mono);
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        margin: 4px 0;
+      }
+
+      .kpi.green {
+        color: var(--green-fg);
+      }
+
+      .kpi.amber {
+        color: var(--amber-fg);
+      }
+
+      .kpi-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--subtle);
+      }
+
+      .tag {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .tag.green {
+        background: var(--green-bg);
+        color: var(--green-fg);
+      }
+
+      .tag.amber {
+        background: var(--amber-bg);
+        color: var(--amber-fg);
+      }
+
+      .tag.red {
+        background: var(--red-bg);
+        color: var(--red-fg);
+      }
+
+      .tag.blue {
+        background: var(--blue-bg);
+        color: var(--blue-fg);
+      }
+
+      .mono {
+        font-family: var(--mono);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--subtle);
+        font-weight: 600;
+      }
+
+      .slide-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+        font-size: 12px;
+        color: var(--subtle);
+      }
+
+      .svg-wrap {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #ffffff;
+        padding: 14px;
+        overflow-x: auto;
+      }
+
+      ul.clean {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      ul.clean li + li {
+        margin-top: 6px;
+      }
+
+      @media (max-width: 900px) {
+        .grid-2,
+        .grid-3,
+        .grid-4 {
+          grid-template-columns: 1fr;
+        }
+        .slide {
+          padding: 24px 20px;
+          min-height: auto;
+        }
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+        .topbar {
+          display: none;
+        }
+        .stage {
+          margin: 0;
+          padding: 0;
+          max-width: none;
+        }
+        .slide {
+          display: flex !important;
+          box-shadow: none;
+          border: none;
+          border-radius: 0;
+          page-break-after: always;
+          break-after: page;
+          min-height: 95vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
+        </svg>
+        <span>AuditLoop · MineArena 1.0 (PS-01)</span>
+        <span class="badge">Live Pitch Deck</span>
+      </div>
+
+      <nav class="nav-pills" aria-label="Slide selector">
+        <button class="pill-btn active" data-slide="0">1 · Problem &amp; Solution</button>
+        <button class="pill-btn" data-slide="1">2 · System Architecture (0:30)</button>
+        <button class="pill-btn" data-slide="2">3 · Scoring &amp; Guardrails</button>
+        <button class="pill-btn" data-slide="3">4 · Verified Results (4:40)</button>
+      </nav>
+
+      <div class="actions">
+        <button class="btn" id="prevBtn" title="Previous slide (Left arrow)">← Prev</button>
+        <button class="btn" id="nextBtn" title="Next slide (Right arrow)">Next →</button>
+        <button class="btn" onclick="window.print()">Print / PDF</button>
+        <a class="btn primary" href="/">Back to App ↗</a>
+      </div>
+    </header>
+
+    <main class="stage">
+      <!-- SLIDE 1: PROBLEM & SOLUTION -->
+      <section class="slide active" data-index="0">
+        <div>
+          <div class="slide-head">
+            <div>
+              <div class="eyebrow">Slide 1 of 4 · MineArena 1.0 · PS-01 Human-in-the-Loop Agent</div>
+              <h1>Autonomous Extraction, Audited Where It Counts</h1>
+              <p class="subtitle">
+                Auditing 10-K SEC filings sits between two brittle extremes: manual spreadsheets are slow, while blind AI
+                auto-approval causes silent financial misstatements. AuditLoop auto-approves routine, multi-verified
+                metrics and suspends via LangGraph <span class="mono">interrupt()</span> only when confidence or accounting
+                invariants fail.
+              </p>
+            </div>
+            <span class="badge">0:00 Demo Intro</span>
+          </div>
+
+          <div class="grid-3" style="margin-top: 20px">
+            <div class="card">
+              <span class="tag red">Failure Mode 1 · Manual Only</span>
+              <h3 style="margin-top: 10px">Slow &amp; Unscalable</h3>
+              <p>
+                Analysts spend hours combing through 100+ page EDGAR HTML filings for 13 core income statement, balance
+                sheet, and cash flow metrics plus footnotes and segments.
+              </p>
+            </div>
+            <div class="card">
+              <span class="tag amber">Failure Mode 2 · Pure AI Auto</span>
+              <h3 style="margin-top: 10px">Confidently Wrong</h3>
+              <p>
+                LLMs confuse restated priors, diluted vs. basic EPS, or scale units ($M vs $K). Without accounting checks
+                and calibrated escalation, wrong numbers ship silently.
+              </p>
+            </div>
+            <div class="card dark">
+              <span class="tag green">AuditLoop Solution</span>
+              <h3 style="margin-top: 10px; color: #fff">Calibrated Human-in-the-Loop</h3>
+              <p>
+                Cross-checks a deterministic HTML parser against an LLM extractor, enforces accounting invariants, and
+                pauses execution cleanly in SQLite so reviewers inspect source table vs. SEC filing side-by-side.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-top: 18px">
+            <div class="card">
+              <h3>PS-01 Evaluation Coverage</h3>
+              <ul class="clean">
+                <li><strong>3.1 True HIL Pause &amp; Resume:</strong> LangGraph <span class="mono">interrupt()</span> + <span class="mono">SqliteSaver</span>; zero writes before decision.</li>
+                <li><strong>3.2 Real Ground Truth:</strong> Exact tie-out vs. SEC <span class="mono">companyfacts</span> XBRL isolated to post-review <span class="mono">verify_vs_xbrl</span>.</li>
+                <li><strong>3.3–3.4 Crash-Safe &amp; Tamper-Evident:</strong> Deterministic idempotency keys + SHA-256 hash-chained <span class="mono">audit_log</span> triggers.</li>
+                <li><strong>3.5–3.8 Clean Decomposition:</strong> Pure UI client, FastAPI SSE state machine, scoped MCP tools, 23/23 unit + 24/24 API tests.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Bonus Features Included (B-1 to B-4)</h3>
+              <ul class="clean">
+                <li><strong>B-1 Adaptive Threshold Calibration:</strong> Reads reviewer feedback history and recommends threshold updates with one-click Apply.</li>
+                <li><strong>B-2 Step-Scoped MCP Server:</strong> Exposes <span class="mono">get_filing</span>, <span class="mono">get_statement_tables</span>, and gated <span class="mono">get_xbrl_fact</span> via stdio &amp; FastAPI.</li>
+                <li><strong>B-3 Segment Revenue Extraction:</strong> Validates sum of business segments against Consolidated Revenue across 10-K footnotes.</li>
+                <li><strong>B-4 Offline Fault Resilience:</strong> Disk-backed SEC EDGAR &amp; LLM response cache runs 100% deterministically without Wi-Fi.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-foot">
+          <span>Team AuditLoop · Mayur Habib (<span class="mono">edgar/, extract/</span>) · Srujan Mirji (<span class="mono">scoring/, verify/, audit/</span>) · Zeeshan Madras (<span class="mono">agent/, api/</span>) · Sai Sudheer (<span class="mono">ui/</span>)</span>
+          <span>Use ← / → keys to navigate · Press Next for 0:30 Architecture Slide</span>
+        </div>
+      </section>
+
+      <!-- SLIDE 2: SYSTEM ARCHITECTURE -->
+      <section class="slide" data-index="1">
+        <div>
+          <div class="slide-head">
+            <div>
+              <div class="eyebrow">Slide 2 of 4 · 0:30 Architecture Walkthrough</div>
+              <h1>11-Node LangGraph State Machine &amp; Zero-Leak Isolation</h1>
+              <p class="subtitle">
+                Extraction nodes never see XBRL ground truth. Only <span class="mono">verify_vs_xbrl</span> is permitted
+                to call <span class="mono">get_xbrl_fact</span> after human review finishes, eliminating benchmark leakage.
+              </p>
+            </div>
+            <span class="badge">0:30 Architecture Slide</span>
+          </div>
+
+          <div class="svg-wrap" style="margin-top: 16px">
+            <svg viewBox="0 0 1120 355" width="100%" role="img" aria-label="AuditLoop System Architecture">
+              <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#334155" />
+                </marker>
+                <marker id="arrowAmber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#b45309" />
+                </marker>
+              </defs>
+
+              <!-- Top UI + FastAPI layer -->
+              <rect x="20" y="14" width="330" height="58" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" />
+              <text x="36" y="38" font-size="13" font-weight="700" fill="#0f172a">React + Vite Review UI (:5173)</text>
+              <text x="36" y="57" font-size="11" fill="#475569">HTTP + SSE only · Evidence highlight · What-If simulator</text>
+
+              <line x1="350" y1="43" x2="410" y2="43" stroke="#334155" stroke-width="1.8" marker-end="url(#arrow)" />
+
+              <rect x="415" y="14" width="350" height="58" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" />
+              <text x="431" y="38" font-size="13" font-weight="700" fill="#0f172a">FastAPI Control Plane (:8000)</text>
+              <text x="431" y="57" font-size="11" fill="#475569">/runs · /review · /values · /audit · /source · /mcp/*</text>
+
+              <line x1="765" y1="43" x2="825" y2="43" stroke="#334155" stroke-width="1.8" marker-end="url(#arrow)" />
+
+              <rect x="830" y="14" width="270" height="58" rx="12" fill="#0f172a" />
+              <text x="846" y="38" font-size="13" font-weight="700" fill="#ffffff">Step-Scoped MCP</text>
+              <text x="846" y="57" font-size="11" fill="#cbd5e1">extract: HTML/tables · verify: XBRL only</text>
+
+              <!-- LangGraph band label -->
+              <rect x="20" y="92" width="1080" height="168" rx="16" fill="#fcfcfd" stroke="#cbd5e1" stroke-dasharray="5 4" />
+              <text x="36" y="114" font-size="11" font-weight="700" fill="#64748b">LANGGRAPH STATE MACHINE (11 NODES · CHECKPOINTED IN SQLITE)</text>
+
+              <!-- Row 1 nodes -->
+              <rect x="36" y="128" width="116" height="48" rx="10" fill="#ffffff" stroke="#94a3b8" />
+              <text x="94" y="149" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">fetch_filing</text>
+              <text x="94" y="165" text-anchor="middle" font-size="10" fill="#64748b">EDGAR + strip ix:</text>
+
+              <line x1="152" y1="152" x2="174" y2="152" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+
+              <rect x="178" y="128" width="132" height="48" rx="10" fill="#ffffff" stroke="#94a3b8" />
+              <text x="244" y="149" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">locate_statements</text>
+              <text x="244" y="165" text-anchor="middle" font-size="10" fill="#64748b">IS / BS / CF / Seg</text>
+
+              <line x1="310" y1="152" x2="332" y2="152" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+
+              <rect x="336" y="128" width="144" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" />
+              <text x="408" y="149" text-anchor="middle" font-size="12" font-weight="600" fill="#1d4ed8">extract (A + B)</text>
+              <text x="408" y="165" text-anchor="middle" font-size="10" fill="#1e40af">Parser A + LLM B</text>
+
+              <line x1="480" y1="152" x2="502" y2="152" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+
+              <rect x="506" y="128" width="132" height="48" rx="10" fill="#ffffff" stroke="#94a3b8" />
+              <text x="572" y="149" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">score_confidence</text>
+              <text x="572" y="165" text-anchor="middle" font-size="10" fill="#64748b">0.45A + 0.30L + 0.25P</text>
+
+              <line x1="638" y1="152" x2="660" y2="152" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+
+              <rect x="664" y="128" width="124" height="48" rx="10" fill="#ffffff" stroke="#94a3b8" />
+              <text x="726" y="149" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">validate</text>
+              <text x="726" y="165" text-anchor="middle" font-size="10" fill="#64748b">A=L+E · YoY · Unit</text>
+
+              <line x1="788" y1="152" x2="810" y2="152" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+
+              <rect x="814" y="128" width="110" height="48" rx="10" fill="#ecfdf5" stroke="#10b981" />
+              <text x="869" y="149" text-anchor="middle" font-size="12" font-weight="600" fill="#047857">route</text>
+              <text x="869" y="165" text-anchor="middle" font-size="10" fill="#065f46">Auto vs Escalate</text>
+
+              <line x1="924" y1="152" x2="946" y2="152" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+
+              <rect x="950" y="128" width="134" height="48" rx="10" fill="#ecfdf5" stroke="#10b981" />
+              <text x="1017" y="149" text-anchor="middle" font-size="12" font-weight="600" fill="#047857">auto_approve</text>
+              <text x="1017" y="165" text-anchor="middle" font-size="10" fill="#065f46">Audit log batch</text>
+
+              <!-- Connector down from auto_approve to row 2 -->
+              <path d="M 1017 176 L 1017 190 L 210 190 L 210 198" fill="none" stroke="#b45309" stroke-width="1.5" marker-end="url(#arrowAmber)" />
+
+              <!-- Row 2 HIL + Verify nodes -->
+              <rect x="115" y="200" width="235" height="48" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.6" />
+              <text x="232" y="220" text-anchor="middle" font-size="12" font-weight="700" fill="#b45309">human_review · interrupt()</text>
+              <text x="232" y="236" text-anchor="middle" font-size="10" fill="#92400e">Zero DB writes until reviewer decides</text>
+
+              <line x1="350" y1="224" x2="395" y2="224" stroke="#b45309" stroke-width="1.5" marker-end="url(#arrowAmber)" />
+
+              <rect x="400" y="200" width="215" height="48" rx="10" fill="#fffbeb" stroke="#d97706" />
+              <text x="507" y="220" text-anchor="middle" font-size="12" font-weight="600" fill="#b45309">apply_decision</text>
+              <text x="507" y="236" text-anchor="middle" font-size="10" fill="#92400e">Approve / Edit / Reject + Idempotency Key</text>
+
+              <!-- Loop back arrow -->
+              <path d="M 507 200 C 507 184, 370 184, 320 200" fill="none" stroke="#b45309" stroke-dasharray="4 3" stroke-width="1.3" marker-end="url(#arrowAmber)" />
+
+              <line x1="615" y1="224" x2="660" y2="224" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+
+              <rect x="665" y="200" width="225" height="48" rx="10" fill="#eff6ff" stroke="#2563eb" />
+              <text x="777" y="220" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">verify_vs_xbrl</text>
+              <text x="777" y="236" text-anchor="middle" font-size="10" fill="#1e40af">Post-review SEC XBRL tie-out</text>
+
+              <line x1="890" y1="224" x2="935" y2="224" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+
+              <rect x="940" y="200" width="144" height="48" rx="10" fill="#0f172a" />
+              <text x="1012" y="220" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">report → END</text>
+              <text x="1012" y="236" text-anchor="middle" font-size="10" fill="#cbd5e1">Run summary &amp; calibration</text>
+
+              <!-- Persistence Layer -->
+              <rect x="20" y="276" width="340" height="64" rx="12" fill="#f8fafc" stroke="#cbd5e1" />
+              <text x="36" y="300" font-size="12.5" font-weight="700" fill="#0f172a">data/checkpoints.db</text>
+              <text x="36" y="319" font-size="11" fill="#475569">LangGraph SqliteSaver · Instant crash recovery &amp; resume</text>
+
+              <rect x="380" y="276" width="360" height="64" rx="12" fill="#f8fafc" stroke="#cbd5e1" />
+              <text x="396" y="300" font-size="12.5" font-weight="700" fill="#0f172a">data/app.db (Append-Only Audit Log)</text>
+              <text x="396" y="319" font-size="11" fill="#475569">SHA-256 prev_hash → hash · SQLite BEFORE UPDATE/DELETE ABORT</text>
+
+              <rect x="760" y="276" width="340" height="64" rx="12" fill="#f8fafc" stroke="#cbd5e1" />
+              <text x="776" y="300" font-size="12.5" font-weight="700" fill="#0f172a">cache/ (Offline SEC &amp; LLM Replay)</text>
+              <text x="776" y="319" font-size="11" fill="#475569">Zero-network deterministic execution &amp; fast repeat runs</text>
+            </svg>
+          </div>
+
+          <div class="grid-3" style="margin-top: 14px">
+            <div class="card">
+              <h3>Anti-Cheat HTML Stripping</h3>
+              <p>
+                Inline XBRL <span class="mono">ix:</span> tags are stripped inside <span class="mono">edgar/</span> before
+                any extractor sees the filing—extraction operates purely on raw rendered HTML tables.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Zero-Write Pause Guarantee</h3>
+              <p>
+                When a filing escalates, <span class="mono">human_review</span> suspends inside LangGraph
+                <span class="mono">interrupt()</span>. Final values and audit events commit only after
+                <span class="mono">apply_decision</span>.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Tamper-Evident Audit Chain</h3>
+              <p>
+                Every row in <span class="mono">audit_log</span> stores <span class="mono">prev_hash → hash</span>
+                (SHA-256) and triggers <span class="mono">RAISE(ABORT)</span> on any <span class="mono">UPDATE</span> or
+                <span class="mono">DELETE</span> attempt.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-foot">
+          <span>Source: <span class="mono">docs/ARCHITECTURE.md</span> &amp; <span class="mono">agent/mcp_tools.py</span></span>
+          <span>Slide 2 / 4</span>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: CONFIDENCE SCORING, INVARIANTS & DEMO EDGE CASES -->
+      <section class="slide" data-index="2">
+        <div>
+          <div class="slide-head">
+            <div>
+              <div class="eyebrow">Slide 3 of 4 · Scoring, Routing &amp; Accounting Invariants</div>
+              <h1>How Confidence Is Computed — And Overridden by Safety Rules</h1>
+              <p class="subtitle">
+                A high score alone never bypasses an accounting bug: failed invariants or weak label matches immediately
+                override confidence and force human review.
+              </p>
+            </div>
+            <span class="badge">Calibration &amp; Safety</span>
+          </div>
+
+          <div class="grid-2" style="margin-top: 18px">
+            <div class="card dark">
+              <div class="kpi-label" style="color: #94a3b8">Deterministic Confidence Formula</div>
+              <div class="mono" style="font-size: 20px; font-weight: 700; margin: 10px 0 14px; color: #ffffff">
+                C = 0.45 · Agreement + 0.30 · Label + 0.25 · Period/Unit
+              </div>
+              <ul class="clean">
+                <li><strong>Agreement (45%):</strong> Parser A vs. LLM B numeric match (≤ 1% tolerance).</li>
+                <li><strong>Label Match (30%):</strong> Line-item synonym score against target metric definition.</li>
+                <li><strong>Period &amp; Unit (25%):</strong> Exact FY end date + scale multiplier (<span class="mono">$M/$B</span>).</li>
+                <li><strong>Derived Cap:</strong> Calculated metrics (e.g., FCF, inferred Liabilities) are capped at <span class="mono">≤ 0.75</span> so they always escalate.</li>
+              </ul>
+            </div>
+
+            <div class="card">
+              <div class="kpi-label">Hard Auto-Approve Gate + Validation Checks</div>
+              <p style="margin: 8px 0 12px">
+                A value auto-approves <strong>only if all 4 hold</strong>:
+                <span class="mono">present</span> AND <span class="mono">C ≥ threshold (0.85)</span> AND
+                <span class="mono">label ≥ 0.80</span> AND <span class="mono">0 failed checks</span>.
+              </p>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px">
+                <span class="tag green">A = L + E (0.5% tol)</span>
+                <span class="tag green">IS Hierarchy (GP ≤ Rev)</span>
+                <span class="tag green">Segment Sum ≈ Revenue</span>
+                <span class="tag amber">YoY Swing (&gt; 40% soft flag)</span>
+                <span class="tag green">Sign &amp; Scale Plausibility</span>
+              </div>
+              <p style="margin: 0">
+                Even if <span class="mono">C = 0.99</span>, any failed check sends the item into the HIL review queue with
+                one-click evidence highlight in the source SEC table.
+              </p>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 18px">
+            <h3>5 Live Showcase 10-K Filings — Designed to Stress Different Edge Cases</h3>
+            <table style="margin-top: 8px">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Filing Profile &amp; Real-World Edge Case</th>
+                  <th>Accounting / Routing Behavior</th>
+                  <th>Demo Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>AAPL</strong> · Apple</td>
+                  <td>Clean FY2025 10-K · All 13 metrics present</td>
+                  <td><span class="tag green">Auto-approved</span> + Segments tie-out (iPhone, Mac, Services…)</td>
+                  <td>Baseline speed &amp; precision</td>
+                </tr>
+                <tr>
+                  <td><strong>MSFT</strong> · Microsoft</td>
+                  <td>Clean FY2025 10-K · Segment footnote breakdown</td>
+                  <td><span class="tag green">Auto-approved</span> + Segment validation card</td>
+                  <td>Cross-company footnote parity</td>
+                </tr>
+                <tr>
+                  <td><strong>NVDA</strong> · NVIDIA</td>
+                  <td>Hyper-growth year (&gt; 40% YoY revenue/income jump)</td>
+                  <td><span class="tag amber">Soft YoY flag</span> + tricky Capital Expenditures line escalated</td>
+                  <td>Catches true extractor miss</td>
+                </tr>
+                <tr>
+                  <td><strong>TSLA</strong> · Tesla</td>
+                  <td>Non-controlling interest (NCI) sits outside Equity</td>
+                  <td><span class="tag amber">A = L + E fails by 0.52%</span> (above 0.50% gate) + Debt check</td>
+                  <td>Proves math check overrides confidence</td>
+                </tr>
+                <tr>
+                  <td><strong>WMT</strong> · Walmart</td>
+                  <td>No single "Total Liabilities" row on Balance Sheet</td>
+                  <td><span class="mono">total_liabilities = A − E</span> (capped <span class="mono">≤ 0.75</span>) → paused in review</td>
+                  <td>Live approve/edit/reject + resume</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="slide-foot">
+          <span>Source: <span class="mono">scoring/confidence.py</span>, <span class="mono">scoring/router.py</span>, <span class="mono">verify/checks.py</span></span>
+          <span>Slide 3 / 4</span>
+        </div>
+      </section>
+
+      <!-- SLIDE 4: VERIFIED RESULTS -->
+      <section class="slide" data-index="3">
+        <div>
+          <div class="slide-head">
+            <div>
+              <div class="eyebrow">Slide 4 of 4 · 4:40 Benchmark Results &amp; Verification</div>
+              <h1>Zero Wrong Auto-Approvals Across 14 Companies (150+ Values)</h1>
+              <p class="subtitle">
+                Every number below is directly verified against SEC <span class="mono">companyfacts</span> XBRL ground
+                truth and our reproducible unit + crash-recovery API test suites.
+              </p>
+            </div>
+            <span class="badge">4:40 Results Slide</span>
+          </div>
+
+          <div class="grid-4" style="margin-top: 18px">
+            <div class="card">
+              <div class="kpi-label">Demo 5 Filings Accuracy</div>
+              <div class="kpi green">56 / 58 (96.6%)</div>
+              <p>Across AAPL, MSFT, NVDA, WMT, TSLA (13 metrics each; 7 derived w/o XBRL tag)</p>
+            </div>
+            <div class="card">
+              <div class="kpi-label">Wrong Auto-Approvals</div>
+              <div class="kpi green">0</div>
+              <p>36 auto-approved · 29 escalated. Both real misses (NVDA CapEx, TSLA Debt) caught by escalation</p>
+            </div>
+            <div class="card">
+              <div class="kpi-label">High-Confidence Calibration</div>
+              <div class="kpi green">53 / 53 (100%)</div>
+              <p>Every metric scoring &gt; 0.85 matched SEC XBRL exact value (55.2% escalation precision)</p>
+            </div>
+            <div class="card">
+              <div class="kpi-label">9 Unseen Filings Holdout</div>
+              <div class="kpi green">98 / 102</div>
+              <p>JPM, PFE, COST, HD, AMZN, GOOGL, PG, KO, COCO · Zero wrong auto-approvals</p>
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-top: 18px">
+            <div class="card">
+              <h3>Verified Engineering &amp; Reliability Suite</h3>
+              <table style="margin-top: 8px">
+                <thead>
+                  <tr>
+                    <th>Check</th>
+                    <th>Result</th>
+                    <th>What It Proves</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="mono">tests/ (unittest)</td>
+                    <td><span class="tag green">23 / 23 PASS</span></td>
+                    <td>Scoring bounds, label floor, router gates, append-only SQLite triggers</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">api.test_flow</td>
+                    <td><span class="tag green">24 / 24 PASS</span></td>
+                    <td>HIL pause/resume, idempotency replay, crash recovery, API schema</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">agent.mcp_tools</td>
+                    <td><span class="tag green">SMOKE PASS</span></td>
+                    <td>Step-scoped JSON-RPC permissions (blocks XBRL during extract)</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">Repeatability</td>
+                    <td><span class="tag green">2 / 2 Identical</span></td>
+                    <td>Zero crashes, deterministic cache replay across full benchmark runs</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="card dark">
+              <span class="tag blue">Key Judge Takeaways (PS-01)</span>
+              <h3 style="margin-top: 12px; color: #fff">Why AuditLoop Ships Safely in Production</h3>
+              <ul class="clean" style="margin-top: 10px">
+                <li><strong>Safety-first routing:</strong> Accounting invariants &amp; label floors veto high confidence—0 silent misstatements in 14 filings.</li>
+                <li><strong>Zero ground-truth leakage:</strong> XBRL tags stripped before extraction; <span class="mono">get_xbrl_fact</span> gated to post-review <span class="mono">verify/</span>.</li>
+                <li><strong>True crash resilience:</strong> Kill the server mid-review and <span class="mono">SqliteSaver</span> resumes exact checkpoint + idempotent decisions.</li>
+                <li><strong>Adaptive human feedback (B-1):</strong> Reviewer decisions tune auto-approve threshold dynamically without weakening hard checks.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-foot">
+          <span>Verified sources: <span class="mono">docs/DEMO.md</span>, <span class="mono">git commit 6b9bb0d</span>, and live test suite runs</span>
+          <span>Slide 4 / 4 · Press <a href="/" style="color: inherit; font-weight: 600">Back to App</a> for live walkthrough</span>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const slides = Array.from(document.querySelectorAll('.slide'));
+        const pills = Array.from(document.querySelectorAll('.pill-btn'));
+        let idx = 0;
+
+        function show(nextIdx) {
+          idx = (nextIdx + slides.length) % slides.length;
+          slides.forEach((el, i) => el.classList.toggle('active', i === idx));
+          pills.forEach((btn, i) => btn.classList.toggle('active', i === idx));
+          if (history.replaceState) {
+            history.replaceState(null, '', '#slide-' + (idx + 1));
+          }
+        }
+
+        const hashMatch = window.location.hash.match(/^#slide-(\d+)$/);
+        if (hashMatch) {
+          const parsed = parseInt(hashMatch[1], 10) - 1;
+          if (parsed >= 0 && parsed < slides.length) show(parsed);
+        }
+
+        pills.forEach((btn) => {
+          btn.addEventListener('click', () => show(parseInt(btn.dataset.slide || '0', 10)));
+        });
+        document.getElementById('prevBtn')?.addEventListener('click', () => show(idx - 1));
+        document.getElementById('nextBtn')?.addEventListener('click', () => show(idx + 1));
+
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+            if (e.key === ' ') e.preventDefault();
+            show(idx + 1);
+          } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+            show(idx - 1);
+          } else if (/^[1-4]$/.test(e.key)) {
+            show(parseInt(e.key, 10) - 1);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

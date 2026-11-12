@@ -305,13 +305,16 @@ function DecisionForm({ item, onDone }: { item: PendingItem; onDone: (message: s
 }
 
 const ORDER: Metric[] = [
-  'revenue', 'operating_income', 'net_income', 'eps_diluted',
-  'total_assets', 'total_liabilities', 'equity', 'operating_cash_flow', 'cash',
+  'revenue', 'gross_profit', 'operating_income', 'net_income', 'eps_diluted',
+  'total_assets', 'total_liabilities', 'equity', 'long_term_debt',
+  'operating_cash_flow', 'capex', 'free_cash_flow', 'cash',
 ];
 
 function FilingContextColumn({ item, runQueue, threshold }: { item: PendingItem; runQueue: PendingItem[]; threshold: number }) {
   const v = item.value;
   const filingValues = useApi(() => api.values({ ticker: v.ticker }));
+  const runs = useApi(api.listRuns);
+  const runSegments = (runs.data ?? []).find((r) => r.thread_id === item.thread_id)?.segments ?? [];
   const all = useMemo(() => {
     const rows = (filingValues.data ?? []).filter((r) => r.accession === v.accession);
     return rows.sort((a, b) => ORDER.indexOf(a.metric) - ORDER.indexOf(b.metric));
@@ -372,7 +375,35 @@ function FilingContextColumn({ item, runQueue, threshold }: { item: PendingItem;
         </section>
       )}
 
-      {/* 2. Filing 8-Metric Snapshot (Cross-Statement Context) */}
+      {/* Segment Revenue Breakdown when extracted for this filing */}
+      {runSegments.length > 0 && (() => {
+        const segSum = runSegments.reduce((s, x) => s + Number(x.value || 0), 0);
+        const revVal = byMetric.revenue?.value ?? null;
+        return (
+          <section aria-labelledby="rev-seg-heading" className="bg-white rounded-2xl border border-gray-200 p-5 shadow-xs space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="rev-seg-heading" className="text-sm font-bold text-gray-900">
+                Segment Revenue Breakdown ({runSegments.length} segments)
+              </h2>
+              <span className="text-xs font-mono text-gray-600 tabular-nums">
+                Sum {segSum.toLocaleString('en-US')}{revVal !== null ? ` vs Revenue ${revVal.toLocaleString('en-US')}` : ''}
+              </span>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2 text-xs">
+              {runSegments.map((s) => (
+                <div key={s.segment} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200/80">
+                  <span className="font-medium text-gray-800 truncate">{s.segment}</span>
+                  <span className="font-bold text-gray-900 tabular-nums shrink-0">
+                    {s.value.toLocaleString('en-US')} {segSum ? `(${((s.value / segSum) * 100).toFixed(0)}%)` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* 2. Filing Metric Snapshot (Cross-Statement Context) */}
       {all.length > 0 && (
         <section aria-labelledby="snapshot-heading" className="bg-white rounded-2xl border border-gray-200 p-5 shadow-xs space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">

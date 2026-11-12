@@ -345,6 +345,7 @@ def list_runs() -> list[dict]:
             "thread_id": thread_id, "ticker": ticker, "status": status,
             "accession": accession, "period_end": period_end,
             "steps_done": _steps_done(thread_id), "next": list(snap.next),
+            "segments": state.get("segments") or [],
             "n_values": len(values),
             "n_pending": len(state.get("pending", [])) if status == "paused" else 0,
             "n_auto": statuses.count("auto_approved"),
