@@ -6,11 +6,9 @@ Independent of validation (PS Step 4), so graph order does not matter; the route
 """
 from rapidfuzz import fuzz
 
-from core.config import DERIVED_CAP, SYNONYMS
+from core.config import DERIVED_CAP, SYNONYMS, WEIGHTS
 from core.models import ExtractedValue
 
-# ARCHITECTURE §6. Local because core/config.WEIGHTS still holds the old 4-part split (Zeeshan to update).
-WEIGHTS: dict[str, float] = {"agreement": 0.45, "label": 0.30, "period_unit": 0.25}
 EPS_UNIT = "USD/shares"
 
 
