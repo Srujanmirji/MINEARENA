@@ -108,6 +108,8 @@ function ValueCard({ item, threshold }: { item: PendingItem; threshold: number }
   const yoyPct = v.value !== null && v.prior_value
     ? ((v.value - v.prior_value) / Math.abs(v.prior_value)) * 100
     : null;
+  const yoyFailed = v.validation.some((c) => c.check === 'Year-on-year' && c.status === 'failed');
+  const cleanLabel = (v.row_label || '—').replace(/\s*\(derived\)\s*$/i, '');
   const histEntries = Object.entries(v.history ?? {}).sort(([a], [b]) => a.localeCompare(b));
   const maxHist = Math.max(...histEntries.map(([, val]) => Math.abs(val)), 1);
 
@@ -120,14 +122,14 @@ function ValueCard({ item, threshold }: { item: PendingItem; threshold: number }
       </div>
       <dl className="grid grid-cols-2 gap-3 mt-3 text-xs border-b border-gray-100 pb-4">
         <div><dt className="text-gray-500">Period</dt><dd className="font-semibold text-gray-800 mt-0.5">{v.period_start ? `${v.period_start} → ` : 'As of '}{v.period_end}</dd></div>
-        <div><dt className="text-gray-500">Row label</dt><dd className="font-semibold text-gray-800 mt-0.5">{v.row_label || '—'}{v.is_derived ? ' (derived)' : ''}</dd></div>
+        <div><dt className="text-gray-500">Row label</dt><dd className="font-semibold text-gray-800 mt-0.5">{cleanLabel}{v.is_derived ? ' (derived)' : ''}</dd></div>
         {v.prior_value !== null && (
           <div className="col-span-2">
             <dt className="text-gray-500">Prior year</dt>
             <dd className="font-semibold text-gray-800 mt-0.5 tabular-nums">
               {tableNumber(v, v.prior_value)} {unitText(v)}
               {yoyPct !== null && (
-                <span className={`ml-1.5 font-bold ${Math.abs(yoyPct) > 40 ? 'text-amber-700' : 'text-gray-600'}`}>
+                <span className={`ml-1.5 font-bold ${yoyFailed ? 'text-amber-700' : 'text-gray-600'}`}>
                   ({yoyPct >= 0 ? '+' : ''}{yoyPct.toFixed(1)}% YoY)
                 </span>
               )}
@@ -257,7 +259,13 @@ function DecisionForm({ item, onDone }: { item: PendingItem; onDone: (message: s
         <div className="flex flex-wrap gap-1.5">
           {[
             ...(item.reason?.includes('NCI') ? ['Gap is noncontrolling interest; value matches filing'] : []),
-            ...(v.is_derived ? ['Derived liabilities (Assets − Total Equity) verified in balance sheet'] : []),
+            ...(v.is_derived
+              ? [
+                  v.metric === 'free_cash_flow'
+                    ? 'Derived free cash flow (Operating cash flow − CapEx) verified in cash flow statement'
+                    : 'Derived liabilities (Assets − Total Equity) verified in balance sheet',
+                ]
+              : []),
             ...(item.reason?.includes('vs prior') ? ['Genuine YoY change verified in Item 8 & MD&A'] : []),
             'Verified against 10-K Item 8 statement row',
           ].map((preset) => (

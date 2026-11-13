@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { api, type ExtractedValue } from '../../api';
-import { tableNumber } from './format';
+import { METRIC_LABEL, tableNumber, unitText } from './format';
 import { ErrorBox, Loading } from './states';
 import { useApi } from './useApi';
 
@@ -87,6 +87,116 @@ export function SourceEvidence({ threadId, value }: { threadId: string; value: E
         <div><span className="font-semibold text-gray-800">Row read:</span> {value.row_label || '—'} → {tableNumber(value, value.value)}</div>
         {value.source_snippet && <div className="font-mono break-words">{value.source_snippet}</div>}
       </div>
+
+      <RowBarGraph value={value} />
     </section>
+  );
+}
+
+function RowBarGraph({ value }: { value: ExtractedValue }) {
+  const cfg = useApi(api.getConfig);
+  const yoyLimit = cfg.data?.yoy_threshold ?? 0.4;
+  const yoyLimitPct = Math.round(yoyLimit * 100);
+  const cur = value.final_value ?? value.value;
+  const prior = value.prior_value;
+  if (cur === null || prior === null || prior === 0) return null;
+
+  const curYr = Number(value.period_end?.slice(0, 4)) || 2026;
+  const bars: { year: string; val: number; isCurrent?: boolean }[] = [];
+
+  // Include 3rd (FY-2) column if present in history or source_snippet ("Label | cur | prior | older")
+  const histEntries = value.history ? Object.entries(value.history).sort(([a], [b]) => a.localeCompare(b)) : [];
+  if (histEntries.length >= 3) {
+    bars.push({ year: `FY ${histEntries[0][0]}`, val: histEntries[0][1] });
+  } else if (value.source_snippet) {
+    const nums = value.source_snippet
+      .split('|')
+      .slice(1)
+      .map((s) => {
+        const clean = s.trim();
+        const neg = clean.startsWith('(') && clean.endsWith(')');
+        const n = Number(clean.replace(/[$,()\s]/g, ''));
+        return Number.isFinite(n) ? (neg ? -n : n) : NaN;
+      })
+      .filter((n) => Number.isFinite(n));
+    if (nums.length >= 3 && Math.abs(nums[0] - cur) < 1 && Math.abs(nums[1] - prior) < 1) {
+      bars.push({ year: `FY ${curYr - 2}`, val: nums[2] });
+    }
+  }
+
+  bars.push({ year: `FY ${curYr - 1} (Prior)`, val: prior });
+  bars.push({ year: `FY ${curYr} (Current)`, val: cur, isCurrent: true });
+
+  const yoyChange = ((cur - prior) / Math.abs(prior)) * 100;
+  const yoyCheck = value.validation.find((c) => c.check === 'Year-on-year');
+  const isFlagged = yoyCheck ? yoyCheck.status === 'failed' : Math.abs(yoyChange) > yoyLimitPct;
+  const gateVal = prior >= 0 ? prior * (1 + yoyLimit) : prior * (1 - yoyLimit);
+  const maxVal = Math.max(...bars.map((b) => Math.abs(b.val)), Math.abs(gateVal), 1) * 1.12;
+  const gateBottomPct = Math.min(95, Math.max(8, (Math.abs(gateVal) / maxVal) * 100));
+
+  return (
+    <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/70 p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div>
+          <span className="font-bold text-gray-900">
+            Extracted Row Bar Graph: {METRIC_LABEL[value.metric]}
+          </span>
+          <span className="ml-1.5 text-gray-500">({unitText(value)})</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={`px-2.5 py-0.5 rounded-full font-mono font-bold ${
+              isFlagged ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-800'
+            }`}
+          >
+            YoY: {yoyChange >= 0 ? `+${yoyChange.toFixed(1)}%` : `${yoyChange.toFixed(1)}%`}
+          </span>
+          <span className="text-[11px] text-gray-600">
+            {isFlagged ? `Exceeds ±${yoyLimitPct}% anomaly gate` : `Within ±${yoyLimitPct}% normal range`}
+          </span>
+        </div>
+      </div>
+
+      {/* Vertical Bar Area with Dashed YoY Threshold Line */}
+      <div className="relative h-36 bg-white rounded-lg border border-gray-200 px-6 pt-6 pb-2 flex items-end justify-around gap-6">
+        {/* Dashed YoY Threshold Line */}
+        <div
+          className="absolute left-3 right-3 border-t-2 border-dashed border-amber-500/80 pointer-events-none flex justify-end"
+          style={{ bottom: `${gateBottomPct}%` }}
+        >
+          <span className=" -mt-4 bg-amber-50 border border-amber-300 text-amber-900 font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded">
+            +{yoyLimitPct}% YoY gate: {tableNumber(value, Math.round(gateVal))}
+          </span>
+        </div>
+
+        {bars.map((b) => {
+          const hPct = Math.max(8, (Math.abs(b.val) / maxVal) * 100);
+          const barColor = b.isCurrent
+            ? isFlagged
+              ? 'bg-amber-500'
+              : 'bg-blue-600'
+            : 'bg-gray-300';
+          return (
+            <div key={b.year} className="relative z-10 flex-1 max-w-[9rem] h-full flex flex-col items-center justify-end">
+              <div className="font-mono text-xs font-bold text-gray-900 mb-1 tabular-nums">
+                {tableNumber(value, b.val)}
+              </div>
+              <div
+                className={`w-full rounded-t-md ${barColor} transition-all shadow-2xs`}
+                style={{ height: `${hPct}%` }}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex justify-around gap-6 px-6 text-[11px] font-semibold text-gray-700">
+        {bars.map((b) => (
+          <div key={b.year} className="flex-1 max-w-[9rem] text-center">
+            {b.year}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

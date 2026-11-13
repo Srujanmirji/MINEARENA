@@ -206,6 +206,80 @@ function MultiPeriodVariance({ ticker, rows }: { ticker: string; rows: Extracted
         </span>
       </div>
 
+      { /* Visual Multi-Year Grouped Bar Chart for Key Income & Cash Flow Metrics */ }
+      {(() => {
+        const chartMetrics: Metric[] = ['revenue', 'gross_profit', 'operating_income', 'net_income', 'operating_cash_flow', 'free_cash_flow'];
+        const chartRows = comparable.filter((r) => chartMetrics.includes(r.metric));
+        if (chartRows.length === 0) return null;
+        return (
+          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-bold text-gray-800">Multi-Period Trend Graph ({years.length >= 2 ? years.map((y) => `FY${y.slice(-2)}`).join(' → ') : 'Prior → Current'})</span>
+              <div className="flex items-center gap-3 text-[11px] text-gray-600">
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-xs bg-gray-300 inline-block" /> Older FY</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-xs bg-gray-900 inline-block" /> Latest FY</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-xs bg-amber-500 inline-block" /> YoY Anomaly</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {chartRows.map((v) => {
+                const cur = v.final_value ?? v.value ?? 0;
+                const prior = v.prior_value ?? 0;
+                const series =
+                  years.length >= 2
+                    ? years.map((y, idx) => ({
+                        label: `FY${y.slice(-2)}`,
+                        val: idx === years.length - 1 ? cur : (v.history?.[y] ?? 0),
+                      }))
+                    : [
+                        { label: 'Prior', val: prior },
+                        { label: 'Curr', val: cur },
+                      ];
+                const maxVal = Math.max(...series.map((s) => Math.abs(s.val)), 1);
+                const yoyPct = prior !== 0 ? ((cur - prior) / Math.abs(prior)) * 100 : null;
+                const yoyFailed = v.validation.some((c) => c.check === 'Year-on-year' && c.status === 'failed');
+                return (
+                  <div key={v.id} className={`rounded-lg border p-2.5 bg-white flex flex-col justify-between ${yoyFailed ? 'border-amber-300' : 'border-gray-200'}`}>
+                    <div className="flex items-start justify-between gap-1">
+                      <span className="text-[11px] font-bold text-gray-900 leading-tight">{METRIC_LABEL[v.metric]}</span>
+                      {yoyPct !== null && (
+                        <span className={`text-[10px] font-mono font-bold px-1 rounded ${yoyFailed ? 'bg-amber-100 text-amber-900' : 'bg-gray-100 text-gray-700'}`}>
+                          {yoyPct >= 0 ? `+${yoyPct.toFixed(0)}%` : `${yoyPct.toFixed(0)}%`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="h-20 flex items-end gap-1.5 pt-3 mt-1 border-b border-gray-200">
+                      {series.map((pt, i) => {
+                        const isLast = i === series.length - 1;
+                        const hPct = Math.max(8, Math.round((Math.abs(pt.val) / maxVal) * 100));
+                        const barCls = isLast
+                          ? yoyFailed
+                            ? 'bg-amber-500'
+                            : 'bg-gray-900'
+                          : i === series.length - 2
+                            ? 'bg-gray-400'
+                            : 'bg-gray-300';
+                        return (
+                          <div key={pt.label} className="flex-1 flex flex-col items-center justify-end h-full" title={`${pt.label}: ${tableNumber(v, pt.val)}`}>
+                            <div className="text-[9px] font-mono text-gray-600 mb-0.5 truncate max-w-full">{tableNumber(v, pt.val)}</div>
+                            <div className={`w-full rounded-t ${barCls} transition-all`} style={{ height: `${hPct}%` }} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between text-[9px] font-mono text-gray-500 pt-1">
+                      {series.map((pt) => (
+                        <span key={pt.label} className="flex-1 text-center">{pt.label}</span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs tabular-nums">
           <thead className="bg-gray-50 text-gray-600 font-semibold border-y border-gray-200">
@@ -300,6 +374,7 @@ function SegmentBreakdown({ ticker, revenue, segments }: { ticker: string; reven
   const segSum = segments.reduce((s, item) => s + Number(item.value || 0), 0);
   const revVal = revenue ? (revenue.final_value ?? revenue.value) : null;
   const diffPct = revVal ? Math.abs(segSum - revVal) / Math.abs(revVal) * 100 : null;
+  const palette = ['bg-gray-900', 'bg-blue-600', 'bg-emerald-600', 'bg-amber-500', 'bg-indigo-600', 'bg-rose-600'];
   return (
     <section aria-labelledby="segments-heading" className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -317,6 +392,35 @@ function SegmentBreakdown({ ticker, revenue, segments }: { ticker: string; reven
             {diffPct <= 0.05 ? 'Exact match (0.0% gap)' : `Variance: ${diffPct.toFixed(2)}%`}
           </span>
         )}
+      </div>
+
+      {/* Stacked 100% Segment Distribution Bar */}
+      <div className="space-y-1.5">
+        <div className="h-3.5 w-full rounded-full overflow-hidden flex bg-gray-100 border border-gray-200">
+          {segments.map((seg, i) => {
+            const share = segSum ? (seg.value / segSum) * 100 : 0;
+            return (
+              <div
+                key={seg.segment}
+                className={`h-full ${palette[i % palette.length]} transition-all`}
+                style={{ width: `${share}%` }}
+                title={`${seg.segment}: ${seg.value.toLocaleString('en-US')} (${share.toFixed(1)}%)`}
+              />
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-600">
+          {segments.map((seg, i) => {
+            const share = segSum ? (seg.value / segSum) * 100 : 0;
+            return (
+              <span key={seg.segment} className="inline-flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${palette[i % palette.length]}`} />
+                <strong className="text-gray-800">{seg.segment}</strong>
+                <span className="font-mono">{share.toFixed(1)}%</span>
+              </span>
+            );
+          })}
+        </div>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
         {segments.map((seg) => {
@@ -467,7 +571,7 @@ function ValueRow({ v }: { v: ExtractedValue }) {
         <td className="py-3 px-4 text-xs text-gray-700">{v.period_start ? `${v.period_start} → ` : 'as of '}{v.period_end}</td>
         <td className="py-3 px-4 text-xs text-gray-700 max-w-[16rem] space-y-1">
           <div>
-            {v.row_label || '—'}
+            {(v.row_label || '—').replace(/\s*\(derived\)\s*$/i, '')}
             {v.is_derived && <span className="ml-1 text-amber-800 font-semibold">(derived)</span>}
           </div>
           {v.source_snippet && (
