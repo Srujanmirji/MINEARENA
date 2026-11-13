@@ -5,6 +5,8 @@ import { CHECK_STYLE, METRIC_LABEL, STATUS_STYLE, errorText, tableNumber, unitTe
 import { Empty, ErrorBox, Loading } from './states';
 import { SourceEvidence } from './SourceEvidence';
 import { ExplainChange } from './ExplainChange';
+import { ReviewedList } from './ReviewedList';
+import { ConfidenceWhy } from './ConfidenceWhy';
 import { useApi } from './useApi';
 
 interface Props {
@@ -14,8 +16,6 @@ interface Props {
 }
 
 const REVIEWER_KEY = 'auditloop.reviewer';
-/** Same as scoring/router.py LABEL_FLOOR: below this a signal is worth a reviewer's attention. */
-const WEAK_SIGNAL = 0.8;
 
 function readReviewer(): string {
   try { return localStorage.getItem(REVIEWER_KEY) || ''; } catch { return ''; }
@@ -31,10 +31,13 @@ export function ReviewTab({ threshold, onDecided, onOpenRuns }: Props) {
   if (queue.error && !queue.data) return <ErrorBox message={queue.error} onRetry={queue.reload} />;
   if (!item) {
     return (
-      <Empty title="Nothing waiting for review">
-        Every escalated value has a decision. Start a company run to extract a new filing.{' '}
-        <button type="button" onClick={onOpenRuns} className="text-blue-700 underline font-medium">Go to runs</button>
-      </Empty>
+      <div className="max-w-6xl mx-auto pb-12 space-y-6">
+        <Empty title="Nothing waiting for review">
+          Every escalated value has a decision. Start a company run to extract a new filing.{' '}
+          <button type="button" onClick={onOpenRuns} className="text-blue-700 underline font-medium">Go to runs</button>
+        </Empty>
+        <ReviewedList refreshOn={queue.data} />
+      </div>
     );
   }
 
@@ -94,6 +97,10 @@ export function ReviewTab({ threshold, onDecided, onOpenRuns }: Props) {
           <DecisionForm key={item.value.id} item={item} onDone={(msg) => { onDecided(msg); queue.reload(); }} />
         </div>
       </div>
+
+      <div className="mt-6">
+        <ReviewedList refreshOn={queue.data} />
+      </div>
     </div>
   );
 }
@@ -102,9 +109,6 @@ function ValueCard({ item, threshold }: { item: PendingItem; threshold: number }
   const v = item.value;
   const parser = v.extractor === 'parser' ? v.value : v.alt_value;
   const llm = v.extractor === 'llm' ? v.value : v.alt_value;
-  const signals: [string, number | undefined][] = [
-    ['Agreement', v.signals.agreement], ['Label', v.signals.label], ['Period / unit', v.signals.period_unit],
-  ];
   const yoyPct = v.value !== null && v.prior_value
     ? ((v.value - v.prior_value) / Math.abs(v.prior_value)) * 100
     : null;
@@ -164,14 +168,8 @@ function ValueCard({ item, threshold }: { item: PendingItem; threshold: number }
           <div className={`h-full rounded-full ${v.confidence >= threshold ? 'bg-emerald-600' : 'bg-amber-500'}`} style={{ width: `${v.confidence * 100}%` }} />
           <div className="absolute top-0 bottom-0 w-0.5 bg-black" style={{ left: `${threshold * 100}%` }} />
         </div>
-        <div className="grid grid-cols-3 gap-2 text-center text-xs mt-3">
-          {signals.map(([name, s]) => (
-            <div key={name} className="bg-gray-50 border border-gray-100 rounded-lg p-2">
-              <div className="text-gray-600">{name}</div>
-              <div className={`font-bold mt-0.5 tabular-nums ${s !== undefined && s < WEAK_SIGNAL ? 'text-amber-700' : 'text-gray-900'}`}>{s === undefined ? '—' : s.toFixed(2)}</div>
-            </div>
-          ))}
-        </div>
+        <h3 className="text-xs font-bold text-gray-900 mt-4 mb-2">Why {v.confidence.toFixed(2)}?</h3>
+        <ConfidenceWhy v={v} threshold={threshold} />
       </div>
 
       <div className="grid grid-cols-2 gap-3 mt-4">

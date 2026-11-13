@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, type ExtractedValue, type Metric, type SegmentItem } from '../../api';
 import { CHECK_STYLE, METRIC_LABEL, STATUS_STYLE, TICKERS, errorText, tableNumber, unitText } from './format';
+import { ConfidenceWhy } from './ConfidenceWhy';
 import { Empty, ErrorBox, Loading } from './states';
 import { useApi } from './useApi';
 import { RunAuditPanel } from './RunAuditPanel';
@@ -13,7 +14,7 @@ const ALL_METRICS: Metric[] = [
 ];
 
 /** PS 3.7: extracted metrics, confidence scores and validation results, per company. */
-export function ValuesTab() {
+export function ValuesTab({ threshold }: { threshold: number }) {
   const values = useApi(() => api.values());
   const runs = useApi(api.listRuns);
   const [ticker, setTicker] = useState<string>('');
@@ -99,7 +100,7 @@ export function ValuesTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 align-top">
-                  {rows.map((v) => <ValueRow key={v.id} v={v} />)}
+                  {rows.map((v) => <ValueRow key={v.id} v={v} threshold={threshold} />)}
                 </tbody>
               </table>
             </div>
@@ -515,7 +516,7 @@ function FilingSummary({ rows }: { rows: ExtractedValue[] }) {
   );
 }
 
-function ValueRow({ v }: { v: ExtractedValue }) {
+function ValueRow({ v, threshold }: { v: ExtractedValue; threshold: number }) {
   const [showSource, setShowSource] = useState(false);
   const [explainText, setExplainText] = useState<string | null>(null);
   const [explaining, setExplaining] = useState(false);
@@ -595,6 +596,10 @@ function ValueRow({ v }: { v: ExtractedValue }) {
         <td className="py-3 px-4 text-right tabular-nums font-semibold">
           {v.confidence.toFixed(2)}
           <ConfidenceBars v={v} />
+          <details className="mt-1.5 text-left font-normal">
+            <summary className="cursor-pointer text-[11px] font-semibold text-blue-700">Why {v.confidence.toFixed(2)}?</summary>
+            <div className="mt-2 w-72"><ConfidenceWhy v={v} threshold={threshold} /></div>
+          </details>
         </td>
         <td className="py-3 px-4">
           <ul className="space-y-1">

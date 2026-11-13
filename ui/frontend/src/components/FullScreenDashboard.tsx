@@ -199,7 +199,7 @@ export const FullScreenDashboard: React.FC<FullScreenDashboardProps> = ({ onClos
         <div className="animate-card-left">
           {tab === 'review' && <ReviewTab threshold={threshold} onDecided={onDecided} onOpenRuns={() => setTab('runs')} />}
           {tab === 'runs' && <RunsTab config={config} onConfigChange={setConfig} onReview={() => setTab('review')} />}
-          {tab === 'values' && <ValuesTab />}
+          {tab === 'values' && <ValuesTab threshold={threshold} />}
           {tab === 'accuracy' && <AccuracyTab />}
           {tab === 'audit' && <AuditTab />}
         </div>
