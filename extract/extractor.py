@@ -18,6 +18,7 @@ from core.models import ExtractedValue, METRICS
 from edgar.client import get_primary_doc
 from extract.clean import strip_ixbrl
 from extract.llm_extractor import extract_with_llm
+from extract.segments import parse_segments
 from extract.table_parser import _clean_num, label_allowed, parse_statement_table
 
 _doc_cache: dict[str, list[str]] = {}
@@ -138,7 +139,8 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
     # 1. Segments
     segments: list[dict] = []
     if "segment" in tables and tables["segment"].get("html"):
-        segments = _extract_segments_from_table(tables["segment"]["html"])
+        html = tables["segment"]["html"]
+        segments = parse_segments(html) or _extract_segments_from_table(html)
 
     # 2. Extract metrics per statement
     extracted_by_metric: dict[str, dict] = {}
@@ -239,9 +241,14 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
                         derived_hist[y] = round(assets_item["history"][y] - equity_item["history"][y], 2)
 
             bs_info = tables.get("balance_sheet", {})
+            derived_alt = (
+                round(assets_item["alt_value"] - equity_item["alt_value"], 2)
+                if assets_item.get("alt_value") is not None and equity_item.get("alt_value") is not None
+                else None
+            )
             extracted_by_metric["total_liabilities"] = {
                 "value": derived_val,
-                "alt_value": None,
+                "alt_value": derived_alt,
                 "extractor": "parser",
                 "row_label": "Total liabilities (derived)",
                 "source_snippet": f"Derived: {assets_item['value']} (Total assets) - {equity_item['value']} ({equity_item.get('row_label') or 'Total equity'}) = {derived_val}",
@@ -257,10 +264,15 @@ def extract_filing(meta: dict, tables: dict[str, dict]) -> tuple[list[ExtractedV
     ocf, capex = extracted_by_metric.get("operating_cash_flow") or {}, extracted_by_metric.get("capex") or {}
     if ocf.get("value") is not None and capex.get("value") is not None:
         fcf = round(ocf["value"] - abs(capex["value"]), 2)
+        fcf_alt = (
+            round(ocf["alt_value"] - abs(capex["alt_value"]), 2)
+            if ocf.get("alt_value") is not None and capex.get("alt_value") is not None
+            else None
+        )
         prior = (None if ocf.get("prior_value") is None or capex.get("prior_value") is None
                  else round(ocf["prior_value"] - abs(capex["prior_value"]), 2))
         extracted_by_metric["free_cash_flow"] = {
-            "value": fcf, "alt_value": None, "extractor": "parser", "row_label": "Free cash flow (derived)",
+            "value": fcf, "alt_value": fcf_alt, "extractor": "parser", "row_label": "Free cash flow (derived)",
             "source_snippet": f"Derived: {ocf['value']} (operating cash flow) - {abs(capex['value'])} (capital expenditure) = {fcf}",
             "prior_value": prior, "history": {}, "column_header": ocf.get("column_header", ""),
             "table_index": ocf.get("table_index"), "table_scale": ocf.get("table_scale", 1), "is_derived": True,

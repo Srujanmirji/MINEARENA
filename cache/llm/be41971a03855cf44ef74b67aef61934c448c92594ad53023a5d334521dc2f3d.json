@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "metric": "revenue",
+      "row_label": "Net sales",
+      "current_value": 7228055,
+      "prior_value": 6899716,
+      "column_header": "2025",
+      "snippet": "Net sales | $ | 7,228,055 | $ | 6,899,716 | $ | 6,653,858"
+    },
+    {
+      "metric": "operating_income",
+      "row_label": "Income from operations",
+      "current_value": 950656,
+      "prior_value": 920350,
+      "column_header": "2025",
+      "snippet": "Income from operations | 950,656 | 920,350 | 834,451"
+    },
+    {
+      "metric": "net_income",
+      "row_label": "Net income",
+      "current_value": 570582,
+      "prior_value": 633125,
+      "column_header": "2025",
+      "snippet": "Net income | $ | 570,582 | $ | 633,125 | $ | 408,375"
+    },
+    {
+      "metric": "eps_diluted",
+      "row_label": "Common Stock",
+      "current_value": 6.81,
+      "prior_value": 6.99,
+      "column_header": "2025",
+      "snippet": "Common Stock | $ | 6.81 | $ | 6.99 | $ | 4.35"
+    },
+    {
+      "metric": "gross_profit",
+      "row_label": "Gross profit",
+      "current_value": 2872362,
+      "prior_value": 2753179,
+      "column_header": "2025",
+      "snippet": "Gross profit | 2,872,362 | 2,753,179 | 2,598,711"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "metric": "total_assets",
+      "row_label": "Total assets",
+      "current_value": 4302998,
+      "prior_value": 5313139,
+      "column_header": "December 31, 2025",
+      "snippet": "Total assets | $ | 4,302,998 | $ | 5,313,139"
+    },
+    {
+      "metric": "total_liabilities",
+      "row_label": "Total liabilities",
+      "current_value": 5042721,
+      "prior_value": 3895528,
+      "column_header": "December 31, 2025",
+      "snippet": "Total liabilities | 5,042,721 | 3,895,528"
+    },
+    {
+      "metric": "equity",
+      "row_label": "Total (deficit)/equity",
+      "current_value": -739723,
+      "prior_value": 1417611,
+      "column_header": "December 31, 2025",
+      "snippet": "Total (deficit)/equity | (739,723) | 1,417,611"
+    },
+    {
+      "metric": "cash",
+      "row_label": "Cash and cash equivalents",
+      "current_value": 281918,
+      "prior_value": 1135824,
+      "column_header": "December 31, 2025",
+      "snippet": "Cash and cash equivalents | $ | 281,918 | $ | 1,135,824"
+    },
+    {
+      "metric": "long_term_debt",
+      "row_label": "Long-term debt",
+      "current_value": 2686009,
+      "prior_value": 1436649,
+      "column_header": "December 31, 2025",
+      "snippet": "Long-term debt | 2,686,009 | 1,436,649"
+    }
+  ]
+}

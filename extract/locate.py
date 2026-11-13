@@ -10,6 +10,8 @@ import re
 import warnings
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
+from extract.segments import parse_segments
+
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 INCOME_PATTERNS = [
@@ -153,20 +155,24 @@ def locate_statements(clean_html: str) -> dict[str, dict]:
                     }
                     break
 
-        # Segment Reporting
-        if "segment" not in located:
+        # Segment Reporting: keep looking past the first match until a table actually parses as revenue
+        # by segment (the first "segment" table is often an MD&A expense table).
+        if "segment" not in located or not located["segment"]["parsed"]:
             is_seg_heading = any(kw in close_text.lower() for kw in [
                 "segment revenue", "segment results", "reportable segment",
                 "segment information", "segments of operations", "company's segments",
                 "information by segment", "by reportable segment"
             ]) or ("segment" in close_text.lower() and "note" in close_text.lower())
             if is_seg_heading and ("revenue" in t_text or "sales" in t_text):
-                located["segment"] = {
-                    "index": idx,
-                    "heading": "Segment Reporting",
-                    "scale": scale,
-                    "html": str(t),
-                }
+                parsed = bool(parse_segments(str(t)))
+                if "segment" not in located or parsed:
+                    located["segment"] = {
+                        "index": idx,
+                        "heading": "Segment Reporting",
+                        "scale": scale,
+                        "parsed": parsed,
+                        "html": str(t),
+                    }
 
     return located
 
