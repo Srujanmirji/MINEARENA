@@ -34,13 +34,14 @@ def _reason(v: ExtractedValue, threshold: float) -> str:
     ]
     if v.is_derived:
         parts.append("derived value, not read from the filing")
-    if _label(v) < LABEL_FLOOR:
-        parts.append(f"label match {_label(v):.2f} < {LABEL_FLOOR:.2f}: check it is the right row")
-    weak = {k: x for k, x in v.signals.items()
-            if k in SIGNAL_NAMES and x < 1 and not (k == "label" and x < LABEL_FLOOR)}
-    if weak:
-        k = min(weak, key=weak.get)
-        parts.append(f"{SIGNAL_NAMES[k]} {weak[k]:.2f}")
+    else:
+        if _label(v) < LABEL_FLOOR:
+            parts.append(f"label match {_label(v):.2f} < {LABEL_FLOOR:.2f}: check it is the right row")
+        weak = {k: x for k, x in v.signals.items()
+                if k in SIGNAL_NAMES and x < 1 and not (k == "label" and x < LABEL_FLOOR)}
+        if weak:
+            k = min(weak, key=weak.get)
+            parts.append(f"{SIGNAL_NAMES[k]} {weak[k]:.2f}")
     if v.confidence < threshold:
         parts.append(f"confidence {v.confidence:.2f} < {threshold:.2f}")
     return "; ".join(parts)

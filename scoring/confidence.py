@@ -24,11 +24,12 @@ def agreement(v: ExtractedValue) -> float:
 
 
 def label(v: ExtractedValue) -> float:
-    if not v.row_label:
+    raw = (v.row_label or "").lower().replace("(derived)", "").strip()
+    if not raw:
         return 0.0
     # fuzz.ratio, not token_set_ratio: token_set scores 1.0 whenever a synonym's words are a subset of
     # the label, so "Total assets of discontinued operations" would match "total assets" perfectly.
-    best = max(fuzz.ratio(v.row_label.lower(), s) for s in SYNONYMS[v.metric])
+    best = max(fuzz.ratio(raw, s) for s in SYNONYMS[v.metric])
     return round(best / 100, 3)
 
 
